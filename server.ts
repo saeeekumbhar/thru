@@ -31,6 +31,11 @@ async function startServer() {
       Respond ONLY with a valid JSON object matching this structure:
       {
         "title": "Trip to ${destination}",
+        "summary": {
+          "totalCost": "₹45,000",
+          "travelTime": "12h total",
+          "highlights": ["Iconic landmarks", "Local cuisine", "Hidden gems"]
+        },
         "days": [
           {
             "day": 1,
@@ -45,7 +50,20 @@ async function startServer() {
             ]
           }
         ],
-        "budgetEstimate": "$500",
+        "options": {
+          "stays": [
+            { "title": "Hotel Name", "price": "₹4,000/night", "rating": 4.5, "tags": ["Boutique", "Central"] }
+          ],
+          "food": [
+            { "title": "Restaurant Name", "price": "₹800 avg", "rating": 4.2, "tags": ["Street Food", "Authentic"] }
+          ],
+          "places": [
+            { "title": "Attraction Name", "price": "Free", "rating": 4.8, "tags": ["Must-visit", "History"] }
+          ],
+          "transport": [
+            { "title": "Private Cab", "price": "₹1,500", "rating": 4.5, "tags": ["Fastest", "Comfort"] }
+          ]
+        },
         "tips": ["Tip 1", "Tip 2"]
       }`;
 

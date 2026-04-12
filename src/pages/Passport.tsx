@@ -29,7 +29,7 @@ export default function Passport() {
           <div className="flex-1 p-6 md:p-8 border-b md:border-b-0 md:border-r border-ink/10 relative">
             <div className="text-center mb-8 border-b-2 border-ink pb-4">
               <h2 className="font-serif text-2xl font-bold tracking-widest uppercase text-ink">Passport</h2>
-              <p className="font-typewriter text-xs text-ink-light">THRU TRAVEL SYSTEM</p>
+              <p className="font-typewriter text-xs text-ink-light">thru TRAVEL SYSTEM</p>
             </div>
 
             <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
@@ -62,7 +62,7 @@ export default function Passport() {
                   </div>
                   <div>
                     <div className="text-[10px] font-typewriter text-ink-light uppercase">Authority</div>
-                    <div className="font-typewriter font-bold text-sm">THRU AI</div>
+                    <div className="font-typewriter font-bold text-sm">thru AI</div>
                   </div>
                 </div>
               </div>

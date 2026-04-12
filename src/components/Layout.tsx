@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Compass, BookOpen, Map, User, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logout } from '../firebase';
+import Assistant from './Assistant';
 
 export default function Layout() {
   const location = useLocation();
@@ -18,7 +19,10 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Mobile Header */}
       <header className="md:hidden bg-paper-dark border-b border-ink/10 p-4 flex justify-between items-center sticky top-0 z-50">
-        <h1 className="font-serif text-2xl font-bold tracking-widest text-ink">THRU</h1>
+        <div className="flex flex-col">
+          <h1 className="font-serif text-2xl font-bold tracking-widest text-ink leading-none">thru</h1>
+          <p className="text-[10px] font-typewriter text-ink-light italic">- Go thru the world, the right way</p>
+        </div>
         {user && (
           <button onClick={logout} className="text-ink-light hover:text-stamp-red">
             <LogOut size={20} />
@@ -29,8 +33,9 @@ export default function Layout() {
       {/* Sidebar (Desktop) */}
       <aside className="hidden md:flex flex-col w-64 bg-paper-dark border-r border-ink/10 h-screen sticky top-0">
         <div className="p-8">
-          <h1 className="font-serif text-4xl font-bold tracking-widest text-ink mb-2">THRU</h1>
-          <p className="text-xs font-typewriter text-ink-light uppercase tracking-widest">Travel Journal</p>
+          <h1 className="font-serif text-4xl font-bold tracking-widest text-ink mb-1">thru</h1>
+          <p className="text-[10px] font-typewriter text-ink-light italic mb-4">- Go thru the world, the right way</p>
+          <p className="text-xs font-typewriter text-ink-light uppercase tracking-widest border-t border-ink/5 pt-4"></p>
         </div>
         
         {user && (
@@ -95,6 +100,7 @@ export default function Layout() {
           })}
         </nav>
       )}
+      <Assistant />
     </div>
   );
 }

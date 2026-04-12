@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { MapPin, Calendar, Plus, ArrowRight, Compass, User } from 'lucide-react';
 import { format } from 'date-fns';
+import { getCurrency } from '../lib/utils';
 
 export default function Dashboard() {
   const { user, userProfile } = useAuth();
@@ -38,13 +39,22 @@ export default function Dashboard() {
               destination: 'Iceland',
               startDate: new Date(Date.now() - 3600000 * 24 * 30),
               status: 'Completed',
-              budget: 2500
+              budget: 2500,
+              currency: '$'
             },
             {
               id: 'sample-2',
-              destination: 'Kyoto',
+              destination: 'Mumbai, India',
               status: 'Planning',
-              budget: 1800
+              budget: 45000,
+              currency: '₹'
+            },
+            {
+              id: 'sample-3',
+              destination: 'Kyoto',
+              status: 'Exploring',
+              budget: 1800,
+              currency: '¥'
             }
           ]);
         }
@@ -120,7 +130,7 @@ export default function Dashboard() {
                   {trip.budget && (
                     <div className="mt-4 pt-4 border-t border-ink/10 border-dashed flex justify-between items-center">
                       <span className="text-xs text-ink-light uppercase tracking-wider">Budget</span>
-                      <span className="font-typewriter font-bold">${trip.budget}</span>
+                      <span className="font-typewriter font-bold">{trip.currency || getCurrency(trip.destination)}{trip.budget}</span>
                     </div>
                   )}
                 </div>

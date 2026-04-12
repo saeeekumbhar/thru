@@ -1,168 +1,357 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Send, Bot, User, Loader2, MapPin, Calendar, DollarSign } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { Compass, Loader2, MapPin, Plus, UserPlus } from 'lucide-react';
+import { Dropdown } from '../components/ui/Dropdown';
+import { Slider } from '../components/ui/Slider';
+import { Chips } from '../components/ui/Chips';
+import { getCurrency } from '../lib/utils';
+
+const MOCK_ITINERARY = {
+  title: "A Custom thru Expedition",
+  summary: {
+    totalCost: "Optimized for your budget",
+    travelTime: "Flexible pace",
+    highlights: ["Personalized routes", "Hidden gems", "Local experiences"]
+  },
+  days: [
+    {
+      day: 1,
+      theme: "The Journey Begins",
+      activities: [
+        { time: "10:00 AM", place: "Local Landmark", description: "Start your adventure with a visit to a recommended historical site.", type: "sightseeing" },
+        { time: "01:00 PM", place: "Authentic Bistro", description: "Enjoy a meal curated to your specific tastes.", type: "food" },
+        { time: "04:00 PM", place: "Cultural District", description: "Explore the vibrant local scene and soak in the atmosphere.", type: "culture" }
+      ]
+    },
+    {
+      day: 2,
+      theme: "Deeper Exploration",
+      activities: [
+        { time: "11:00 AM", place: "Artistic Alley", description: "Discover hidden street art and independent galleries.", type: "hidden gem" },
+        { time: "02:00 PM", place: "Scenic Overlook", description: "Breathtaking views recommended by local guides.", type: "nature" },
+        { time: "07:00 PM", place: "Twilight Market", description: "A bustling evening experience with regional specialties.", type: "food" }
+      ]
+    }
+  ],
+  options: {
+    stays: [
+      { title: "The Heritage Inn", price: "₹2,500/night", rating: 4.7, tags: ["Historic", "Quiet"] },
+      { title: "Modern Studio", price: "₹1,800/night", rating: 4.5, tags: ["Minimalist", "City-view"] }
+    ],
+    food: [
+      { title: "Old Town Cafe", price: "₹450 avg", rating: 4.8, tags: ["Cozy", "Local Coffee"] },
+      { title: "Street Flavors", price: "₹200 avg", rating: 4.6, tags: ["Authentic", "Quick"] }
+    ],
+    places: [
+      { title: "Ancient Library", price: "Free", rating: 4.9, tags: ["History", "Architecture"] },
+      { title: "Botanical Garden", price: "₹100", rating: 4.7, tags: ["Nature", "Relaxing"] }
+    ],
+    transport: [
+      { title: "Vintage Tram", price: "₹50", rating: 4.4, tags: ["Slower", "Scenic"] },
+      { title: "Local TukTuk", price: "₹300", rating: 4.2, tags: ["Fast", "Flexible"] }
+    ]
+  },
+  tips: ["Carry a reusable water bottle", "Local markets are best explored on foot"]
+};
 
 export default function TripPlanner() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<{role: 'ai'|'user', content: string}[]>([
-    { role: 'ai', content: "Hello traveler. I'm your AI companion. Where would you like to go, and how many days do you have?" }
-  ]);
-  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [tripData, setTripData] = useState({ destination: '', days: '', preferences: '' });
-  const [step, setStep] = useState(0); // 0: Dest/Days, 1: Prefs, 2: Generating
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  
+  // Form State
+  const [destination, setDestination] = useState('');
+  const [currency, setCurrency] = useState('₹');
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    setCurrency(getCurrency(destination));
+  }, [destination]);
+  
+  // Duration
+  const [duration, setDuration] = useState('3');
+  const [customDuration, setCustomDuration] = useState('');
+  
+  // Travel Mode
+  const [travelType, setTravelType] = useState('Solo');
+  const [numPeople, setNumPeople] = useState('1');
+  
+  // Budget
+  const [budget, setBudget] = useState(25000);
+  const [customBudget, setCustomBudget] = useState('');
+  
+  // Interests
+  const [interestOptions, setInterestOptions] = useState([
+    { value: 'Food', label: 'Food 🍜' },
+    { value: 'Culture', label: 'Culture 🏛️' },
+    { value: 'Nightlife', label: 'Nightlife 🌃' },
+    { value: 'Nature', label: 'Nature 🌿' },
+    { value: 'Shopping', label: 'Shopping 🛍️' },
+    { value: 'History', label: 'History 📜' },
+  ]);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [newInterestInput, setNewInterestInput] = useState('');
+  
+  // Stay
+  const [stayPreference, setStayPreference] = useState('Hotel');
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  // Specifics
+  const [specifics, setSpecifics] = useState('');
 
-    const userMessage = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+  const finalDuration = duration === 'custom' ? customDuration : duration;
+  const finalBudget = customBudget ? parseInt(customBudget) : budget;
+  const finalPeople = travelType === 'custom' ? numPeople : (travelType === 'Solo' ? '1' : (travelType === 'Couple' ? '2' : '4'));
 
-    if (step === 0) {
-      // Very basic extraction for demo purposes
-      setTripData(prev => ({ ...prev, destination: userMessage, days: '3' })); // Defaulting days for simplicity if not parsed
-      setMessages(prev => [...prev, { role: 'ai', content: "Excellent choice. What kind of traveler are you? (e.g., foodie, history buff, budget backpacker, luxury seeker)" }]);
-      setStep(1);
-    } else if (step === 1) {
-      setTripData(prev => ({ ...prev, preferences: userMessage }));
-      setMessages(prev => [...prev, { role: 'ai', content: "Perfect. I'm crafting your itinerary now. This might take a moment..." }]);
-      setStep(2);
-      generateItinerary(tripData.destination || 'Unknown', '3', userMessage);
+  const handleAddInterest = (e: React.KeyboardEvent | React.MouseEvent) => {
+    if (newInterestInput.trim()) {
+      const newValue = newInterestInput.trim();
+      if (!interestOptions.find(o => o.value === newValue)) {
+        setInterestOptions(prev => [...prev, { value: newValue, label: `${newValue} ✨` }]);
+      }
+      if (!selectedInterests.includes(newValue)) {
+        setSelectedInterests(prev => [...prev, newValue]);
+      }
+      setNewInterestInput('');
     }
   };
 
-  const generateItinerary = async (destination: string, days: string, preferences: string) => {
+  const handleBuildTrip = async () => {
+    if (!destination || loading) return;
+
     setLoading(true);
+    const preferences = `${travelType} traveler (${finalPeople} people) interested in ${selectedInterests.join(', ')}. Preferring ${stayPreference} stays. Budget: ${currency}${finalBudget}. Additional notes: ${specifics}`;
+    
     try {
-      const response = await fetch('/api/generate-itinerary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ destination, days, preferences })
-      });
+      // Small delay for effect
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      if (!response.ok) throw new Error('Failed to generate');
-
-      const itinerary = await response.json();
-      
-      // Save to Firestore
-      if (user) {
-        const tripRef = await addDoc(collection(db, 'trips'), {
-          user_id: user.uid,
-          destination: itinerary.title || destination,
-          status: 'planning',
-          itinerary: JSON.stringify(itinerary),
-          budget: parseInt(itinerary.budgetEstimate?.replace(/[^0-9]/g, '') || '0'),
-          createdAt: serverTimestamp()
+      let itinerary;
+      try {
+        const response = await fetch('/api/generate-itinerary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            destination, 
+            days: finalDuration, 
+            preferences 
+          })
         });
 
-        setMessages(prev => [...prev, { 
-          role: 'ai', 
-          content: `Your itinerary is ready! I've saved it to your journal. \n\n**[View Trip Details](/trips/${tripRef.id})**` 
-        }]);
+        if (!response.ok) throw new Error('API Unavailable');
+        itinerary = await response.json();
+      } catch (apiError) {
+        console.warn("Using MOCK data fallback.");
+        itinerary = { 
+          ...MOCK_ITINERARY, 
+          title: `Trip to ${destination}`,
+          summary: { 
+            ...MOCK_ITINERARY.summary, 
+            totalCost: `${currency}${finalBudget.toLocaleString()}` 
+          } 
+        };
       }
+      
+      // Save to Firestore
+      const tripData = {
+        user_id: user?.uid || 'guest-123',
+        destination: itinerary.title || destination,
+        status: 'planning',
+        itinerary: JSON.stringify(itinerary),
+        budget: finalBudget,
+        currency: currency,
+        duration: finalDuration,
+        num_people: finalPeople,
+        createdAt: serverTimestamp()
+      };
+
+      const tripRef = await addDoc(collection(db, 'trips'), tripData);
+      navigate(`/trips/${tripRef.id}`);
+      
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'ai', content: "I'm sorry, my telegraph lines seem to be down. I couldn't generate the itinerary. Please try again later." }]);
-      setStep(1); // Go back a step
+      alert("Telegraph lines are down. Even the backup manifest failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-paper">
-      <header className="bg-paper-dark border-b border-ink/10 p-4 flex items-center justify-between z-10">
-        <div className="flex items-center space-x-3">
-          <div className="bg-ink text-paper p-2 rounded-full">
-            <Bot size={20} />
+    <div className="min-h-screen bg-paper flex flex-col items-center p-6 md:p-12 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')]"></div>
+      
+      <div className="max-w-2xl w-full bg-white border border-ink/10 shadow-xl rounded-lg p-8 md:p-12 relative z-10">
+        <header className="text-center mb-12">
+          <div className="inline-block stamp-effect text-stamp-blue border-stamp-blue mb-4 uppercase">
+            planner no. 402
           </div>
-          <div>
-            <h2 className="font-serif font-bold text-ink">Travel Companion</h2>
-            <p className="text-xs font-typewriter text-ink-light">AI Assistant</p>
-          </div>
-        </div>
-      </header>
+          <h1 className="font-serif text-4xl font-bold text-ink">New Expedition</h1>
+          <p className="font-typewriter text-ink-light mt-2 italic">- Go thru the world, the right way</p>
+        </header>
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 relative">
-        {/* Background texture */}
-        <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')]"></div>
-        
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} relative z-10`}>
-            <div className={`max-w-[85%] md:max-w-[70%] flex space-x-3 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}>
-              
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${msg.role === 'user' ? 'bg-stamp-blue text-white' : 'bg-ink text-paper'}`}>
-                {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
-              </div>
-              
-              <div className={`p-4 rounded-lg shadow-sm ${
-                msg.role === 'user' 
-                  ? 'bg-white border border-ink/10 rounded-tr-none' 
-                  : 'bg-paper-dark border border-ink/20 rounded-tl-none relative'
-              }`}>
-                {/* Sticky note effect for AI */}
-                {msg.role === 'ai' && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-3 bg-ink/10 rounded-full blur-[1px]"></div>
-                )}
-                
-                <div className="prose prose-sm prose-stone max-w-none font-sans text-ink">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+        <div className="space-y-10">
+          {/* Destination */}
+          <div className="flex flex-col space-y-2">
+            <label className="text-xs font-typewriter uppercase text-ink-light tracking-wider flex items-center">
+              <MapPin size={14} className="mr-1" /> Destination
+            </label>
+            <input 
+              type="text"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="e.g. Mumbai, Paris, Tokyo"
+              className="w-full bg-paper border-b-2 border-ink py-2 font-serif text-2xl focus:outline-none focus:border-stamp-red transition-colors placeholder:text-ink/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            {/* Duration */}
+            <div className="space-y-4">
+              <Dropdown 
+                label="Duration"
+                value={duration}
+                onChange={setDuration}
+                options={[
+                  { value: '1', label: '1 Day' },
+                  { value: '3', label: '2-3 Days' },
+                  { value: '7', label: '4-7 Days' },
+                  { value: '14', label: '1-2 Weeks' },
+                  { value: 'custom', label: 'Custom...' },
+                ]}
+              />
+              {duration === 'custom' && (
+                <div className="flex flex-col space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-[10px] font-typewriter uppercase text-ink-light">Enter Days</label>
+                  <input 
+                    type="number"
+                    value={customDuration}
+                    onChange={(e) => setCustomDuration(e.target.value)}
+                    placeholder="Number of days"
+                    className="w-full bg-paper border-b border-ink/30 py-1 font-serif text-lg focus:outline-none focus:border-ink"
+                  />
                 </div>
-              </div>
+              )}
             </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start relative z-10">
-            <div className="flex space-x-3">
-              <div className="w-8 h-8 rounded-full bg-ink text-paper flex items-center justify-center flex-shrink-0 mt-1">
-                <Bot size={16} />
-              </div>
-              <div className="bg-paper-dark border border-ink/20 p-4 rounded-lg rounded-tl-none flex items-center space-x-2">
-                <Loader2 size={16} className="animate-spin text-ink-light" />
-                <span className="text-sm font-typewriter text-ink-light">Consulting maps...</span>
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </main>
 
-      <footer className="bg-white border-t border-ink/10 p-4 z-10 pb-safe">
-        <div className="max-w-4xl mx-auto relative flex items-center">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type your message..."
-            disabled={loading || step === 2}
-            className="w-full bg-paper border border-ink/20 rounded-full py-3 pl-6 pr-12 focus:outline-none focus:border-ink transition-colors font-sans"
-          />
+            {/* Travel Mode (including custom people) */}
+            <div className="space-y-4">
+               <Dropdown 
+                label="Travel Mode"
+                value={travelType}
+                onChange={setTravelType}
+                options={[
+                  { value: 'Solo', label: 'Solo 👤' },
+                  { value: 'Couple', label: 'Couple 👩‍❤️‍👨' },
+                  { value: 'Friends', label: 'With Friends 🍻' },
+                  { value: 'Family', label: 'Family 👨‍👩‍👧‍👦' },
+                  { value: 'custom', label: 'Custom... 👥' },
+                ]}
+              />
+              {travelType === 'custom' && (
+                <div className="flex flex-col space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-[10px] font-typewriter uppercase text-ink-light flex items-center">
+                    <UserPlus size={10} className="mr-1" /> Number of People
+                  </label>
+                  <input 
+                    type="number"
+                    value={numPeople}
+                    onChange={(e) => setNumPeople(e.target.value)}
+                    className="w-full bg-paper border-b border-ink/30 py-1 font-serif text-lg focus:outline-none focus:border-ink"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Budget (with local currency) */}
+          <div className="space-y-4">
+            <Slider 
+              label={`Planned Budget (${currency})`}
+              min={500}
+              max={500000}
+              step={500}
+              value={finalBudget}
+              onChange={(v) => {
+                setBudget(v);
+                setCustomBudget('');
+              }}
+              formatValue={(v) => `${currency}${v.toLocaleString()}`}
+            />
+            <div className="flex flex-col space-y-2">
+              <label className="text-[10px] font-typewriter uppercase text-ink-light">Or enter custom amount</label>
+              <input 
+                type="number"
+                value={customBudget}
+                onChange={(e) => setCustomBudget(e.target.value)}
+                placeholder={`${currency} Custom amount`}
+                className="w-48 bg-paper border-b border-ink/30 py-1 font-serif text-lg focus:outline-none focus:border-ink"
+              />
+            </div>
+          </div>
+
+          {/* Interests */}
+          <div className="space-y-4">
+            <Chips 
+              label="Interests"
+              options={interestOptions}
+              selectedValues={selectedInterests}
+              onChange={setSelectedInterests}
+            />
+            <div className="flex items-end space-x-2">
+              <div className="flex-1 flex flex-col space-y-2">
+                <label className="text-[10px] font-typewriter uppercase text-ink-light italic">Type an interest to add it...</label>
+                <input 
+                  type="text"
+                  value={newInterestInput}
+                  onChange={(e) => setNewInterestInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddInterest(e)}
+                  placeholder="e.g. Scuba, Jazz, Spices"
+                  className="w-full bg-paper border-b border-ink/30 py-1 font-serif text-lg focus:outline-none focus:border-ink"
+                />
+              </div>
+              <button 
+                onClick={handleAddInterest}
+                className="p-2 bg-ink text-paper rounded hover:bg-ink-light transition-colors"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Specifics */}
+          <div className="flex flex-col space-y-2">
+            <label className="text-xs font-typewriter uppercase text-ink-light tracking-wider border-b border-ink/5 pb-2">
+              Specifics & Manifest Notes
+            </label>
+            <textarea 
+              value={specifics}
+              onChange={(e) => setSpecifics(e.target.value)}
+              placeholder="Any dietary restrictions, accessibility needs, or specific landmarks you must see..."
+              className="w-full bg-paper border-2 border-ink/10 rounded-lg p-4 font-sans text-sm h-24 focus:outline-none focus:border-ink transition-colors resize-none"
+            />
+          </div>
+
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || loading || step === 2}
-            className="absolute right-2 p-2 bg-ink text-paper rounded-full hover:bg-ink-light disabled:opacity-50 disabled:hover:bg-ink transition-colors"
+            onClick={handleBuildTrip}
+            disabled={!destination || loading}
+            className="w-full bg-ink text-paper py-4 rounded-lg font-serif text-xl font-bold hover:bg-ink-light transition-all disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg hover:translate-y-[-2px]"
           >
-            <Send size={18} />
+            {loading ? (
+              <>
+                <Loader2 size={24} className="animate-spin" />
+                <span>Consulting the Oracle...</span>
+              </>
+            ) : (
+              <>
+                <Compass size={24} />
+                <span>Build My Trip</span>
+              </>
+            )}
           </button>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }

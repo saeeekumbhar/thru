@@ -3,7 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { MapPin, Calendar, DollarSign, Clock, ArrowLeft, Image as ImageIcon, Ticket } from 'lucide-react';
+import { 
+  MapPin, Clock, ArrowLeft, Ticket, 
+  Trash2, Plus, Save, ExternalLink, 
+  Hotel, Utensils, Compass, Bus 
+} from 'lucide-react';
+import { OptionCard } from '../components/ui/OptionCard';
+import { getCurrency } from '../lib/utils';
 
 export default function TripDetails() {
   const { id } = useParams();
@@ -12,10 +18,10 @@ export default function TripDetails() {
   const [trip, setTrip] = useState<any>(null);
   const [itinerary, setItinerary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'itinerary' | 'scrapbook'>('itinerary');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user || !id) return;
+    if (!id) return;
 
     const fetchTrip = async () => {
       try {
@@ -37,156 +43,266 @@ export default function TripDetails() {
     };
 
     fetchTrip();
-  }, [user, id]);
+  }, [id]);
+
+  const handleSavePlan = async () => {
+    if (!id || !itinerary) return;
+    setSaving(true);
+    try {
+      const docRef = doc(db, 'trips', id);
+      await updateDoc(docRef, {
+        itinerary: JSON.stringify(itinerary)
+      });
+    } catch (error) {
+      console.error("Error saving trip:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeActivity = (dayIdx: number, actIdx: number) => {
+    const updated = { ...itinerary };
+    updated.days[dayIdx].activities.splice(actIdx, 1);
+    setItinerary(updated);
+  };
+
+  const addOptionToPlan = (type: string, option: any) => {
+    const updated = { ...itinerary };
+    // Simple logic: add to the first day or based on type
+    const newActivity = {
+      time: "Evening",
+      place: option.title,
+      description: `Added from recommendations: ${option.tags?.join(', ') || ''}`,
+      type: type === 'stays' ? 'accommodation' : (type === 'food' ? 'food' : 'sightseeing')
+    };
+    updated.days[0].activities.push(newActivity);
+    setItinerary(updated);
+  };
 
   if (loading) {
-    return <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ink"></div></div>;
+    return <div className="min-h-screen bg-paper flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
+    </div>;
   }
 
-  if (!trip) {
-    return <div className="p-8 text-center font-serif text-xl">Trip not found.</div>;
-  }
+  if (!trip) return <div className="p-8 text-center font-serif text-xl">Expedition not found.</div>;
 
   return (
-    <div className="min-h-screen bg-paper pb-20">
-      {/* Header */}
-      <header className="bg-white border-b border-ink/10 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-paper flex flex-col">
+      {/* Top Header & Summary Bar */}
+      <header className="bg-white border-b border-ink/10 sticky top-0 z-40 px-4 md:px-8 py-4">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
             <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-paper rounded-full transition-colors">
               <ArrowLeft size={20} className="text-ink" />
             </button>
             <div>
-              <h1 className="font-serif text-2xl font-bold text-ink">{trip.destination}</h1>
-              <div className="flex items-center space-x-4 text-xs font-typewriter text-ink-light">
-                <span className="uppercase bg-paper-dark px-2 py-0.5 rounded">{trip.status}</span>
-                {trip.budget && <span>Budget: ${trip.budget}</span>}
+              <h1 className="font-serif text-2xl font-bold text-ink">{itinerary?.title || trip.destination}</h1>
+              <p className="text-xs font-typewriter text-ink-light uppercase tracking-widest">Digital Manifest {id?.substring(0, 6)}</p>
+            </div>
+          </div>
+
+          {/* Summary Bar Metrics */}
+          <div className="flex items-center space-x-6 bg-paper-dark/30 px-6 py-3 rounded-lg border border-ink/5">
+            <div className="text-center">
+              <p className="text-[10px] font-typewriter uppercase text-ink-light opacity-60">Estimated Cost</p>
+              <p className="font-serif font-bold text-ink">{itinerary?.summary?.totalCost || `${trip.currency || getCurrency(trip.destination)}${trip.budget || 0}`}</p>
+            </div>
+            <div className="w-px h-8 bg-ink/10"></div>
+            <div className="text-center">
+              <p className="text-[10px] font-typewriter uppercase text-ink-light opacity-60">Travel Time</p>
+              <p className="font-serif font-bold text-ink">{itinerary?.summary?.travelTime || '8h 20m'}</p>
+            </div>
+            <div className="w-px h-8 bg-ink/10"></div>
+            <div className="hidden lg:block">
+              <p className="text-[10px] font-typewriter uppercase text-ink-light opacity-60">Highlights</p>
+              <div className="flex space-x-2 mt-1">
+                {itinerary?.summary?.highlights?.map((h: string, i: number) => (
+                  <span key={i} className="text-[9px] bg-ink text-paper px-1.5 py-0.5 rounded uppercase">{h}</span>
+                ))}
               </div>
             </div>
           </div>
-          
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => setActiveTab('itinerary')}
-              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${activeTab === 'itinerary' ? 'bg-ink text-paper' : 'bg-paper text-ink hover:bg-paper-dark'}`}
-            >
-              Itinerary
-            </button>
-            <button 
-              onClick={() => setActiveTab('scrapbook')}
-              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${activeTab === 'scrapbook' ? 'bg-ink text-paper' : 'bg-paper text-ink hover:bg-paper-dark'}`}
-            >
-              Scrapbook
-            </button>
-          </div>
+
+          <button 
+            onClick={handleSavePlan}
+            disabled={saving}
+            className="flex items-center space-x-2 bg-stamp-red text-white px-6 py-2 rounded font-medium hover:bg-opacity-90 transition-all shadow-sm"
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            <span>Save Plan</span>
+          </button>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-4 md:p-8">
-        {activeTab === 'itinerary' ? (
-          <div className="space-y-12">
-            {/* Ticket Header */}
-            <div className="bg-white border-2 border-ink border-dashed rounded-lg p-6 relative overflow-hidden">
-              <div className="absolute top-1/2 -left-4 w-8 h-8 bg-paper rounded-full -translate-y-1/2 border-r-2 border-ink border-dashed"></div>
-              <div className="absolute top-1/2 -right-4 w-8 h-8 bg-paper rounded-full -translate-y-1/2 border-l-2 border-ink border-dashed"></div>
-              
-              <div className="flex justify-between items-center border-b-2 border-ink pb-4 mb-4">
-                <div className="font-serif text-3xl font-bold text-ink tracking-widest uppercase">BOARDING PASS</div>
-                <Ticket size={32} className="text-stamp-red opacity-50" />
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8">
+        {/* Left: Itinerary Timeline */}
+        <div className="flex-1 space-y-12">
+          {itinerary?.days?.map((day: any, dayIdx: number) => (
+            <div key={dayIdx} className="relative pl-6 border-l-2 border-ink/10 space-y-6">
+              <div className="absolute -left-[11px] top-0 w-5 h-5 bg-ink text-paper rounded-full flex items-center justify-center text-[10px] font-bold">
+                {day.day}
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div>
-                  <div className="text-xs font-typewriter text-ink-light uppercase">Passenger</div>
-                  <div className="font-bold font-sans text-lg">{user?.displayName || 'Traveler'}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-typewriter text-ink-light uppercase">Destination</div>
-                  <div className="font-bold font-sans text-lg">{trip.destination}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-typewriter text-ink-light uppercase">Class</div>
-                  <div className="font-bold font-sans text-lg">First Class</div>
-                </div>
-                <div>
-                  <div className="text-xs font-typewriter text-ink-light uppercase">Status</div>
-                  <div className="font-bold font-sans text-lg text-stamp-blue uppercase">{trip.status}</div>
-                </div>
+              <div className="mb-4">
+                <h2 className="font-serif text-2xl font-bold text-ink inline-block border-b-2 border-stamp-blue">
+                  Day {day.day}: {day.theme}
+                </h2>
               </div>
-            </div>
 
-            {/* Days */}
-            {itinerary?.days?.map((day: any, idx: number) => (
-              <div key={idx} className="relative pl-8 md:pl-0">
-                {/* Timeline line */}
-                <div className="absolute left-[15px] md:left-[50%] top-0 bottom-0 w-px bg-ink/20 -translate-x-1/2"></div>
-                
-                <div className="md:flex items-center justify-center mb-8 relative z-10">
-                  <div className="bg-ink text-paper font-serif font-bold px-6 py-2 rounded-full border-4 border-paper shadow-sm inline-block">
-                    Day {day.day}: {day.theme}
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  {day.activities?.map((activity: any, actIdx: number) => (
-                    <div key={actIdx} className={`md:w-1/2 ${actIdx % 2 === 0 ? 'md:pr-12 md:ml-0' : 'md:pl-12 md:ml-auto'} relative`}>
-                      {/* Timeline dot */}
-                      <div className="absolute left-[-33px] md:left-auto md:right-[-6px] top-6 w-3 h-3 bg-stamp-red rounded-full border-2 border-paper z-10 shadow-sm"></div>
-                      
-                      <div className="bg-white p-6 rounded-lg border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-serif text-xl font-bold text-ink">{activity.place}</h3>
-                          <span className="text-xs font-typewriter bg-paper-dark px-2 py-1 rounded text-ink-light flex items-center">
-                            <Clock size={12} className="mr-1" />
-                            {activity.time}
-                          </span>
-                        </div>
-                        <p className="text-ink-light text-sm mb-4">{activity.description}</p>
-                        <div className="inline-block text-xs font-typewriter text-stamp-blue border border-stamp-blue/30 px-2 py-1 rounded uppercase">
-                          {activity.type}
-                        </div>
+              <div className="space-y-4">
+                {day.activities?.map((activity: any, actIdx: number) => (
+                  <div key={actIdx} className="group bg-white p-5 rounded-lg border border-ink/10 shadow-sm hover:shadow-md transition-all relative">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-serif text-lg font-bold text-ink">{activity.place}</h3>
+                      <div className="flex items-center space-x-3">
+                         <span className="text-[10px] font-typewriter bg-paper-dark px-2 py-1 rounded text-ink-light flex items-center">
+                          <Clock size={10} className="mr-1" /> {activity.time}
+                        </span>
+                        <button 
+                          onClick={() => removeActivity(dayIdx, actIdx)}
+                          className="text-ink/10 group-hover:text-stamp-red transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white min-h-[600px] border border-ink/10 shadow-xl rounded-sm p-8 relative texture-paper">
-            {/* Scrapbook styling */}
-            <div className="absolute top-4 left-4 w-12 h-4 bg-ink/10 transform -rotate-6"></div>
-            <div className="absolute top-4 right-4 w-12 h-4 bg-ink/10 transform rotate-3"></div>
-            
-            <h2 className="font-serif text-4xl font-bold text-ink text-center mb-12 border-b-2 border-ink pb-4 inline-block mx-auto w-full">
-              Memories of {trip.destination}
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Placeholder for photos */}
-              <div className="bg-paper-dark p-4 pb-12 transform -rotate-2 shadow-md border border-ink/5 relative">
-                <div className="aspect-video bg-ink/5 flex items-center justify-center mb-4 border border-ink/10 border-dashed">
-                  <ImageIcon size={32} className="text-ink/30" />
-                </div>
-                <p className="font-typewriter text-ink text-center text-sm">Add a photo...</p>
-                <div className="absolute bottom-2 right-2 stamp-effect text-stamp-red border-stamp-red text-xs transform rotate-12">
-                  {trip.destination.substring(0, 3).toUpperCase()}
-                </div>
-              </div>
-
-              {/* Placeholder for notes */}
-              <div className="bg-[#fdfbf7] p-6 shadow-sm border border-ink/10 relative torn-edge">
-                <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')] opacity-20 pointer-events-none"></div>
-                <h3 className="font-serif text-xl font-bold mb-4 text-ink">Journal Entry</h3>
-                <textarea 
-                  className="w-full h-48 bg-transparent border-none focus:ring-0 resize-none font-sans text-ink leading-relaxed"
-                  placeholder="Write about your experiences here..."
-                ></textarea>
+                    <p className="text-ink-light text-sm line-clamp-2 md:line-clamp-none">{activity.description}</p>
+                    <div className="mt-4 flex items-center space-x-2">
+                      <span className="text-[10px] uppercase font-typewriter text-stamp-blue border border-stamp-blue/30 px-2 py-0.5 rounded">
+                        {activity.type}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <button className="w-full py-3 border-2 border-dashed border-ink/10 rounded-lg text-ink-light hover:border-ink/30 hover:bg-white transition-all flex items-center justify-center space-x-2 text-sm font-typewriter">
+                  <Plus size={16} />
+                  <span>Insert Activity</span>
+                </button>
               </div>
             </div>
+          ))}
+        </div>
+
+        {/* Right: Map Panel (Placeholder for now) */}
+        <div className="lg:w-[400px] h-fit sticky top-28 space-y-6">
+          <div className="bg-paper-dark h-[500px] rounded-lg border border-ink/20 relative overflow-hidden shadow-inner group">
+            {/* Fake Map Grid */}
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')] opacity-10"></div>
+            <div className="absolute inset-0 flex flex-col">
+              {[...Array(10)].map((_, i) => <div key={i} className="flex-1 border-b border-ink/5 flex">
+                {[...Array(8)].map((_, j) => <div key={j} className="flex-1 border-r border-ink/5"></div>)}
+              </div>)}
+            </div>
+            
+            <div className="absolute inset-0 flex items-center justify-center text-center p-8">
+              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg border border-ink/10 shadow-xl max-w-[250px]">
+                <MapPin size={32} className="mx-auto text-stamp-red mb-3" />
+                <h3 className="font-serif font-bold text-ink mb-2">Interactive Map</h3>
+                <p className="text-xs text-ink-light leading-relaxed">Locations for <b>{trip.destination}</b> are being plotted on your chart.</p>
+                <button className="mt-4 text-[10px] font-typewriter uppercase tracking-widest text-stamp-blue border-b border-stamp-blue/30 pb-0.5 hover:border-stamp-blue transition-all">
+                  Switch to Google Maps
+                </button>
+              </div>
+            </div>
+
+            {/* Floating Zoom controls */}
+            <div className="absolute bottom-4 right-4 flex flex-col space-y-1">
+              <button className="w-8 h-8 bg-white border border-ink/10 rounded shadow-sm flex items-center justify-center text-lg font-bold">+</button>
+              <button className="w-8 h-8 bg-white border border-ink/10 rounded shadow-sm flex items-center justify-center text-lg font-bold">-</button>
+            </div>
           </div>
-        )}
+
+          <div className="bg-white p-4 rounded-lg border border-ink/10">
+            <h4 className="font-serif font-bold text-sm text-ink mb-3 flex items-center">
+              <Compass size={14} className="mr-2 text-stamp-blue" />
+              Navigation Insight
+            </h4>
+            <div className="bg-paper p-3 rounded text-xs font-serif italic text-ink-light leading-relaxed">
+              "Travel between sites in {trip.destination} is mostly efficient via local transit. Day 2 requires an early start for optimal lighting."
+            </div>
+          </div>
+        </div>
       </main>
+
+      {/* Options Cards Section Below */}
+      <section className="bg-white border-t border-ink/10 py-12 px-4 md:px-8 mt-12 bg-[url('https://www.transparenttextures.com/patterns/linen.png')]">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="text-center">
+            <div className="inline-block bg-mustard/20 text-mustard border border-mustard/30 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
+              Smart Suggestions
+            </div>
+            <h2 className="font-serif text-3xl font-bold text-ink italic">Refine Your Expedition</h2>
+          </div>
+
+          {/* Stay Options */}
+          <div>
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-2 bg-ink text-paper rounded"><Hotel size={18} /></div>
+              <h3 className="font-serif text-xl font-bold text-ink underline decoration-ink/10 underline-offset-8">Selected Stays</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {itinerary?.options?.stays?.map((opt: any, i: number) => (
+                <OptionCard 
+                  key={i} 
+                  type="stay" 
+                  title={opt.title} 
+                  price={opt.price} 
+                  rating={opt.rating} 
+                  tags={opt.tags}
+                  onSelect={() => addOptionToPlan('stays', opt)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Food Options */}
+          <div>
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-2 bg-ink text-paper rounded"><Utensils size={18} /></div>
+              <h3 className="font-serif text-xl font-bold text-ink underline decoration-ink/10 underline-offset-8">Local Dining</h3>
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {itinerary?.options?.food?.map((opt: any, i: number) => (
+                <OptionCard 
+                  key={i} 
+                  type="food" 
+                  title={opt.title} 
+                  price={opt.price} 
+                  rating={opt.rating} 
+                  tags={opt.tags}
+                  onSelect={() => addOptionToPlan('food', opt)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Transport */}
+          <div>
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-2 bg-ink text-paper rounded"><Bus size={18} /></div>
+              <h3 className="font-serif text-xl font-bold text-ink underline decoration-ink/10 underline-offset-8">Transport Routes</h3>
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {itinerary?.options?.transport?.map((opt: any, i: number) => (
+                <OptionCard 
+                  key={i} 
+                  type="transport" 
+                  title={opt.title} 
+                  price={opt.price} 
+                  rating={opt.rating} 
+                  tags={opt.tags}
+                  onSelect={() => addOptionToPlan('transport', opt)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
+}
+
+function Loader2({ size, className }: { size: number, className: string }) {
+  return <div className={`w-${size} h-${size} ${className}`}>...</div>;
 }

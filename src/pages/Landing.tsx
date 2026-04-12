@@ -41,7 +41,10 @@ export default function Landing() {
 
       {/* Header */}
       <header className="p-6 flex justify-between items-center z-10">
-        <div className="font-serif text-3xl font-bold tracking-widest text-ink">THRU</div>
+        <div className="flex flex-col">
+          <div className="font-serif text-3xl font-bold tracking-widest text-ink leading-none">thru</div>
+          <p className="text-[10px] font-typewriter text-ink-light italic">- Go thru the world, the right way</p>
+        </div>
         <button 
           onClick={handleLogin}
           disabled={isLoggingIn}

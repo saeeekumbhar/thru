@@ -23,7 +23,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={<TripPlanner />} />
               <Route path="/trips" element={<Dashboard />} />
               <Route path="/trips/:id" element={<TripDetails />} />
               <Route path="/planner" element={<TripPlanner />} />
