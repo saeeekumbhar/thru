@@ -30,6 +30,24 @@ export default function Dashboard() {
         setTrips(tripsData);
       } catch (error) {
         console.error("Error fetching trips:", error);
+        // Fallback to dummy data for development/bypass
+        if (user.uid.startsWith('guest-')) {
+          setTrips([
+            {
+              id: 'sample-1',
+              destination: 'Iceland',
+              startDate: new Date(Date.now() - 3600000 * 24 * 30),
+              status: 'Completed',
+              budget: 2500
+            },
+            {
+              id: 'sample-2',
+              destination: 'Kyoto',
+              status: 'Planning',
+              budget: 1800
+            }
+          ]);
+        }
       } finally {
         setLoading(false);
       }

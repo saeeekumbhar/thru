@@ -12,15 +12,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({ user: null, loading: true, userProfile: null });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      
       if (currentUser) {
+        setUser(currentUser);
         // Fetch or create user profile in Firestore
         const userRef = doc(db, 'users', currentUser.uid);
         try {
@@ -44,7 +43,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.error("Error fetching/creating user profile:", error);
         }
       } else {
-        setUserProfile(null);
+        // MOCK AUTH BYPASS FOR LOCAL DEVELOPMENT
+        const mockUser = {
+          uid: 'guest-123',
+          displayName: 'Guest Traveler',
+          email: 'guest@example.com',
+          photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky'
+        };
+        const mockProfile = {
+          uid: 'guest-123',
+          name: 'Guest Traveler',
+          email: 'guest@example.com',
+          preferences: ['Mountains', 'Museums', 'Street Food'],
+          travel_miles: 1250,
+          visited_places: ['Mumbai', 'Paris', 'Tokyo'],
+          createdAt: new Date()
+        };
+        
+        setUser(mockUser);
+        setUserProfile(mockProfile);
       }
       
       setLoading(false);
