@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile and travel stats",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "preferences": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "travel_miles": { "type": "number" },
+        "visited_places": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "createdAt"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "A planned or completed trip",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "destination": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["planning", "active", "completed"] },
+        "itinerary": { "type": "string", "description": "JSON stringified itinerary" },
+        "budget": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "destination", "status", "createdAt"]
+    },
+    "Place": {
+      "title": "Place",
+      "description": "A point of interest",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "rating": { "type": "number" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" }
+      },
+      "required": ["name", "type", "lat", "lng"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "User review for a place",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "place_id": { "type": "string" },
+        "text": { "type": "string" },
+        "rating": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "place_id", "text", "rating", "createdAt"]
+    },
+    "Achievement": {
+      "title": "Achievement",
+      "description": "Gamification badge",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" }
+      },
+      "required": ["name", "description"]
+    },
+    "UserAchievement": {
+      "title": "User Achievement",
+      "description": "Mapping of user to earned achievement",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "achievement_id": { "type": "string" },
+        "earnedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "achievement_id", "earnedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/trips/{tripId}": {
+      "schema": { "$ref": "#/entities/Trip" },
+      "description": "User trips"
+    },
+    "/places/{placeId}": {
+      "schema": { "$ref": "#/entities/Place" },
+      "description": "Places database"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Place reviews"
+    },
+    "/achievements/{achievementId}": {
+      "schema": { "$ref": "#/entities/Achievement" },
+      "description": "Available achievements"
+    },
+    "/user_achievements/{userAchievementId}": {
+      "schema": { "$ref": "#/entities/UserAchievement" },
+      "description": "Achievements earned by users"
+    }
+  }
+}

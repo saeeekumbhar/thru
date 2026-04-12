@@ -1,0 +1,187 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId}
+// Fields:
+//   - uid: string (required, immutable)
+//   - name: string (required)
+//   - email: string (required)
+//   - preferences: list (optional)
+//   - travel_miles: number (optional)
+//   - visited_places: list (optional)
+//   - createdAt: timestamp (required, immutable)
+//
+// Collection: trips
+// Document ID: {tripId}
+// Fields:
+//   - user_id: string (required, immutable)
+//   - destination: string (required)
+//   - startDate: string (optional)
+//   - endDate: string (optional)
+//   - status: string (required)
+//   - itinerary: string (optional)
+//   - budget: number (optional)
+//   - createdAt: timestamp (required, immutable)
+//
+// Collection: places
+// Document ID: {placeId}
+// Fields:
+//   - name: string (required)
+//   - type: string (required)
+//   - rating: number (optional)
+//   - lat: number (required)
+//   - lng: number (required)
+//
+// Collection: reviews
+// Document ID: {reviewId}
+// Fields:
+//   - user_id: string (required, immutable)
+//   - place_id: string (required)
+//   - text: string (required)
+//   - rating: number (required)
+//   - createdAt: timestamp (required, immutable)
+//
+// Collection: achievements
+// Document ID: {achievementId}
+// Fields:
+//   - name: string (required)
+//   - description: string (required)
+//   - icon: string (optional)
+//
+// Collection: user_achievements
+// Document ID: {userAchievementId}
+// Fields:
+//   - user_id: string (required, immutable)
+//   - achievement_id: string (required, immutable)
+//   - earnedAt: timestamp (required, immutable)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.user_id;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'name', 'email', 'preferences', 'travel_miles', 'visited_places', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && isValidEmail(data.email) && data.email.size() < 150 &&
+             (!('preferences' in data) || (data.preferences is list && data.preferences.size() < 50)) &&
+             (!('travel_miles' in data) || data.travel_miles is number) &&
+             (!('visited_places' in data) || (data.visited_places is list && data.visited_places.size() < 1000)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidTrip(data) {
+      return hasOnlyAllowedFields(['user_id', 'destination', 'startDate', 'endDate', 'status', 'itinerary', 'budget', 'createdAt']) &&
+             data.user_id is string && data.user_id.size() > 0 && data.user_id.size() < 100 &&
+             data.destination is string && data.destination.size() > 0 && data.destination.size() < 200 &&
+             (!('startDate' in data) || (data.startDate is string && data.startDate.size() < 50)) &&
+             (!('endDate' in data) || (data.endDate is string && data.endDate.size() < 50)) &&
+             data.status in ['planning', 'active', 'completed'] &&
+             (!('itinerary' in data) || (data.itinerary is string && data.itinerary.size() < 500000)) &&
+             (!('budget' in data) || data.budget is number) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidReview(data) {
+      return hasOnlyAllowedFields(['user_id', 'place_id', 'text', 'rating', 'createdAt']) &&
+             data.user_id is string && data.user_id.size() > 0 && data.user_id.size() < 100 &&
+             data.place_id is string && data.place_id.size() > 0 && data.place_id.size() < 100 &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 5000 &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidUserAchievement(data) {
+      return hasOnlyAllowedFields(['user_id', 'achievement_id', 'earnedAt']) &&
+             data.user_id is string && data.user_id.size() > 0 && data.user_id.size() < 100 &&
+             data.achievement_id is string && data.achievement_id.size() > 0 && data.achievement_id.size() < 100 &&
+             data.earnedAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == userId;
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /trips/{tripId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() && isValidTrip(request.resource.data) && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid && isValidTrip(request.resource.data) && request.resource.data.user_id == resource.data.user_id && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+    }
+
+    match /places/{placeId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only populated by backend or admins
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidReview(request.resource.data) && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid && isValidReview(request.resource.data) && request.resource.data.user_id == resource.data.user_id && request.resource.data.place_id == resource.data.place_id && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+    }
+
+    match /achievements/{achievementId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only populated by backend or admins
+    }
+
+    match /user_achievements/{userAchievementId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() && isValidUserAchievement(request.resource.data) && request.resource.data.user_id == request.auth.uid;
+      allow update: if false; // Achievements shouldn't be updated once earned
+      allow delete: if false; // Achievements shouldn't be deleted
+    }
+  }
+}

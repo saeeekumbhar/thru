@@ -1,0 +1,7 @@
+{
+  "name": "THRU",
+  "description": "An AI-powered travel companion, digital travel journal, and gamified passport system.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
