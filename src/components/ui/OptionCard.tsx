@@ -29,16 +29,15 @@ export const OptionCard: React.FC<OptionCardProps> = ({
     <motion.div 
       whileHover={{ y: -4, scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
+      animate={isSelected ? { scale: 1.03, zIndex: 10 } : { scale: 1, zIndex: 1 }}
       onClick={onSelect}
-      className={`group relative bg-white border cursor-pointer transition-all duration-300 ${
+      className={`group relative border cursor-pointer transition-all duration-300 ${
         isSelected 
-          ? 'border-stamp-red ring-1 ring-stamp-red shadow-lg' 
-          : 'border-ink/10 hover:border-ink/30 shadow-sm'
+          ? 'bg-ink border-ink shadow-2xl ring-2 ring-stamp-red/20' 
+          : 'bg-white border-ink/10 hover:border-ink/30 shadow-sm'
       } ${type === 'interest' ? 'p-4 flex flex-col items-center text-center' : 'p-4 rounded-lg'}`}
       style={{
         borderRadius: type === 'interest' ? '0' : '8px',
-        borderStyle: type === 'interest' && isSelected ? 'double' : 'solid',
-        borderWidth: type === 'interest' && isSelected ? '3px' : '1px'
       }}
     >
       {type === 'interest' ? (

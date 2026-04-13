@@ -32,10 +32,13 @@ export default function Layout() {
 
       {/* Sidebar (Desktop) */}
       <aside className="hidden md:flex flex-col w-64 bg-paper-dark/50 border-r border-ink/10 h-screen sticky top-0 px-2 py-8">
-        <div className="px-6 mb-12">
-          <div className="flex flex-col">
+        <div className="px-6 mb-12 relative group">
+          {/* Subtle background strip for branding */}
+          <div className="absolute inset-x-0 -inset-y-2 bg-ink/5 backdrop-blur-[2px] rounded-r-xl -ml-2 transition-all group-hover:bg-ink/10" />
+          
+          <div className="flex flex-col relative z-10">
             <h1 className="font-serif text-4xl font-bold tracking-widest text-ink leading-none">thru</h1>
-            <p className="text-[8px] font-typewriter text-ink-light italic mt-1 uppercase tracking-tighter">
+            <p className="text-[10px] font-typewriter text-ink font-bold italic mt-1.5 uppercase tracking-tighter leading-tight opacity-90 drop-shadow-sm">
               - Go thru the world, the right way
             </p>
           </div>
