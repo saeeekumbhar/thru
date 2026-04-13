@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bot, Send, X, MessageSquare, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Assistant() {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,22 +28,9 @@ export default function Assistant() {
     setLoading(true);
 
     try {
-      // For now, we use the same generation endpoint but treat it as a refinement
-      // In a real app, this would be a separate refinement/chat endpoint
-      const response = await fetch('/api/generate-itinerary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          destination: 'Refinement Mode', 
-          days: '3', 
-          preferences: `Refine current plan based on: ${userMessage}` 
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to chat');
-
-      const data = await response.json();
-      setMessages(prev => [...prev, { role: 'ai', content: "I've noted that! You can see improvements reflected in your dashboard or ask me more specific questions." }]);
+      // Small delay for realism
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setMessages(prev => [...prev, { role: 'ai', content: "I've noted that! You can see improvements reflected in your planner or ask me more specific questions." }]);
     } catch (error) {
       console.error(error);
       setMessages(prev => [...prev, { role: 'ai', content: "My telegraph lines are down. I'll be back shortly." }]);
@@ -53,73 +41,128 @@ export default function Assistant() {
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      {isOpen ? (
-        <div className="bg-white w-80 md:w-96 h-[450px] rounded-2xl shadow-2xl border border-ink/10 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
-          <header className="bg-ink text-paper p-4 flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Bot size={18} />
-              <span className="font-serif font-bold">Thru Assistant</span>
-            </div>
-            <button onClick={() => setIsOpen(false)} className="hover:opacity-70">
-              <X size={18} />
-            </button>
-          </header>
-
-          <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-paper bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')] bg-fixed">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] p-3 rounded-xl text-sm ${
-                  msg.role === 'user' 
-                    ? 'bg-stamp-blue text-white rounded-tr-none' 
-                    : 'bg-white text-ink border border-ink/10 rounded-tl-none shadow-sm'
-                }`}>
-                   {msg.content}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="bg-white w-80 md:w-96 h-[500px] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-ink/10 flex flex-col overflow-hidden mb-4"
+          >
+            <header className="bg-ink text-paper p-5 flex justify-between items-center">
+              <div className="flex items-center space-x-3">
+                <div className="h-8 w-8 rounded-full bg-paper/10 flex items-center justify-center">
+                  <Bot size={18} className="text-paper/80" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-sm leading-tight">thru Assistant</h3>
+                  <p className="text-[8px] font-typewriter uppercase tracking-widest text-paper/60">Refining Your Journey</p>
                 </div>
               </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-ink/10 p-3 rounded-xl rounded-tl-none shadow-sm flex items-center space-x-2">
-                  <Loader2 size={14} className="animate-spin text-ink-light" />
-                  <span className="text-xs font-typewriter italic">Consulting charts...</span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </main>
-
-          <footer className="p-4 bg-white border-t border-ink/10">
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask your assistant..."
-                className="w-full bg-paper border border-ink/10 rounded-full py-2 pl-4 pr-10 text-sm focus:outline-none focus:border-ink"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || loading}
-                className="absolute right-2 p-1.5 text-ink hover:text-stamp-red disabled:opacity-30 transition-colors"
+              <button 
+                onClick={() => setIsOpen(false)} 
+                className="h-8 w-8 rounded-full hover:bg-paper/10 flex items-center justify-center transition-colors"
               >
-                <Send size={16} />
+                <X size={18} />
               </button>
-            </div>
-          </footer>
-        </div>
-      ) : (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="bg-ink text-paper p-4 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all group relative"
+            </header>
+
+            <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-paper bg-map-texture">
+              {messages.map((msg, idx) => (
+                <motion.div 
+                  initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  key={idx} 
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${
+                    msg.role === 'user' 
+                      ? 'bg-ink text-paper rounded-tr-none' 
+                      : 'bg-white text-ink border border-ink/5 rounded-tl-none font-sans leading-relaxed'
+                  }`}>
+                     {msg.content}
+                  </div>
+                </motion.div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-ink/5 p-4 rounded-2xl rounded-tl-none shadow-sm flex items-center space-x-2">
+                    <Loader2 size={14} className="animate-spin text-ink-light" />
+                    <span className="text-[10px] font-typewriter italic text-ink-light">Consulting the itinerary...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </main>
+
+            <footer className="p-4 bg-white border-t border-ink/5">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Ask for advice or refinements..."
+                  className="w-full bg-paper/50 border border-ink/10 rounded-xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:border-ink focus:bg-white transition-all"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || loading}
+                  className="absolute right-2 h-8 w-8 bg-ink text-paper rounded-lg flex items-center justify-center hover:bg-ink-light disabled:opacity-30 transition-all shadow-md active:scale-90"
+                >
+                  <Send size={14} />
+                </button>
+              </div>
+            </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-col items-end">
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setIsOpen(!isOpen)}
+          className={`h-16 w-16 rounded-full shadow-2xl flex items-center justify-center transition-all group relative overflow-hidden ${
+            isOpen ? 'bg-stamp-red text-paper' : 'bg-ink text-paper'
+          }`}
         >
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-stamp-red rounded-full border-2 border-paper animate-pulse"></div>
-          <MessageSquare size={24} />
-          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-ink text-paper px-3 py-1 rounded-sm text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-typewriter uppercase tracking-widest pointer-events-none">
-            Need Help?
-          </span>
-        </button>
-      )}
+          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+          <AnimatePresence mode="wait">
+            {isOpen ? (
+              <motion.div
+                key="close"
+                initial={{ rotate: -90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={{ rotate: 90, opacity: 0 }}
+              >
+                <X size={28} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="chat"
+                initial={{ rotate: 90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={{ rotate: -90, opacity: 0 }}
+              >
+                <MessageSquare size={28} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          <AnimatePresence>
+            {!isOpen && (
+              <motion.span 
+                initial={{ opacity: 0, x: 20 }}
+                whileHover={{ opacity: 1, x: 0 }}
+                className="absolute right-full mr-4 top-1/2 -translate-y-1/2 bg-ink text-paper px-4 py-2 rounded-lg text-[10px] whitespace-nowrap font-typewriter uppercase tracking-widest pointer-events-none shadow-xl border border-white/10"
+              >
+                Need help planning?
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
+      </div>
     </div>
   );
 }

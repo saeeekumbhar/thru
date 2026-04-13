@@ -1,61 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Compass, Loader2, MapPin, Plus, UserPlus } from 'lucide-react';
+import { 
+  Compass, 
+  Loader2, 
+  MapPin, 
+  Users, 
+  User, 
+  Heart, 
+  Coffee, 
+  Palmtree, 
+  Building2, 
+  Music, 
+  ShoppingBag,
+  Zap,
+  TrendingDown,
+  Sparkles,
+  Search,
+  Clock,
+  ChevronRight
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Dropdown } from '../components/ui/Dropdown';
 import { Slider } from '../components/ui/Slider';
-import { Chips } from '../components/ui/Chips';
+import { OptionCard } from '../components/ui/OptionCard';
 import { getCurrency } from '../lib/utils';
 
-const MOCK_ITINERARY = {
-  title: "A Custom thru Expedition",
-  summary: {
-    totalCost: "Optimized for your budget",
-    travelTime: "Flexible pace",
-    highlights: ["Personalized routes", "Hidden gems", "Local experiences"]
-  },
-  days: [
-    {
-      day: 1,
-      theme: "The Journey Begins",
-      activities: [
-        { time: "10:00 AM", place: "Local Landmark", description: "Start your adventure with a visit to a recommended historical site.", type: "sightseeing" },
-        { time: "01:00 PM", place: "Authentic Bistro", description: "Enjoy a meal curated to your specific tastes.", type: "food" },
-        { time: "04:00 PM", place: "Cultural District", description: "Explore the vibrant local scene and soak in the atmosphere.", type: "culture" }
-      ]
-    },
-    {
-      day: 2,
-      theme: "Deeper Exploration",
-      activities: [
-        { time: "11:00 AM", place: "Artistic Alley", description: "Discover hidden street art and independent galleries.", type: "hidden gem" },
-        { time: "02:00 PM", place: "Scenic Overlook", description: "Breathtaking views recommended by local guides.", type: "nature" },
-        { time: "07:00 PM", place: "Twilight Market", description: "A bustling evening experience with regional specialties.", type: "food" }
-      ]
-    }
-  ],
-  options: {
-    stays: [
-      { title: "The Heritage Inn", price: "₹2,500/night", rating: 4.7, tags: ["Historic", "Quiet"] },
-      { title: "Modern Studio", price: "₹1,800/night", rating: 4.5, tags: ["Minimalist", "City-view"] }
-    ],
-    food: [
-      { title: "Old Town Cafe", price: "₹450 avg", rating: 4.8, tags: ["Cozy", "Local Coffee"] },
-      { title: "Street Flavors", price: "₹200 avg", rating: 4.6, tags: ["Authentic", "Quick"] }
-    ],
-    places: [
-      { title: "Ancient Library", price: "Free", rating: 4.9, tags: ["History", "Architecture"] },
-      { title: "Botanical Garden", price: "₹100", rating: 4.7, tags: ["Nature", "Relaxing"] }
-    ],
-    transport: [
-      { title: "Vintage Tram", price: "₹50", rating: 4.4, tags: ["Slower", "Scenic"] },
-      { title: "Local TukTuk", price: "₹300", rating: 4.2, tags: ["Fast", "Flexible"] }
-    ]
-  },
-  tips: ["Carry a reusable water bottle", "Local markets are best explored on foot"]
-};
+const MOCK_CITIES = ['Mumbai', 'Paris', 'Tokyo', 'London', 'New York', 'Dubai', 'Singapore', 'Rome', 'Barcelona', 'Bali'];
+
+const INTEREST_OPTIONS = [
+  { value: 'Food', label: 'Food', icon: <Coffee size={24} /> },
+  { value: 'Culture', label: 'Culture', icon: <Building2 size={24} /> },
+  { value: 'Nightlife', label: 'Nightlife', icon: <Music size={24} /> },
+  { value: 'Nature', label: 'Nature', icon: <Palmtree size={24} /> },
+  { value: 'Shopping', label: 'Shopping', icon: <ShoppingBag size={24} /> },
+  { value: 'Adventure', label: 'Adventure', icon: <Zap size={24} /> },
+];
 
 export default function TripPlanner() {
   const { user } = useAuth();
@@ -64,293 +46,360 @@ export default function TripPlanner() {
   
   // Form State
   const [destination, setDestination] = useState('');
-  const [currency, setCurrency] = useState('₹');
-
-  useEffect(() => {
-    setCurrency(getCurrency(destination));
-  }, [destination]);
-  
-  // Duration
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [duration, setDuration] = useState('3');
-  const [customDuration, setCustomDuration] = useState('');
-  
-  // Travel Mode
   const [travelType, setTravelType] = useState('Solo');
-  const [numPeople, setNumPeople] = useState('1');
-  
-  // Budget
   const [budget, setBudget] = useState(25000);
-  const [customBudget, setCustomBudget] = useState('');
-  
-  // Interests
-  const [interestOptions, setInterestOptions] = useState([
-    { value: 'Food', label: 'Food 🍜' },
-    { value: 'Culture', label: 'Culture 🏛️' },
-    { value: 'Nightlife', label: 'Nightlife 🌃' },
-    { value: 'Nature', label: 'Nature 🌿' },
-    { value: 'Shopping', label: 'Shopping 🛍️' },
-    { value: 'History', label: 'History 📜' },
-  ]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [newInterestInput, setNewInterestInput] = useState('');
   
-  // Stay
-  const [stayPreference, setStayPreference] = useState('Hotel');
+  const currency = useMemo(() => getCurrency(destination), [destination]);
 
-  // Specifics
-  const [specifics, setSpecifics] = useState('');
+  // Live Preview Logic
+  const estimatedCost = useMemo(() => {
+    const basePerDay = budget / Number(duration || 1);
+    const dailySpend = Math.round(basePerDay * (travelType === 'Solo' ? 1 : (travelType === 'Couple' ? 1.8 : 3.5)));
+    return {
+      daily: dailySpend,
+      total: dailySpend * Number(duration || 1)
+    };
+  }, [budget, duration, travelType]);
 
-  const finalDuration = duration === 'custom' ? customDuration : duration;
-  const finalBudget = customBudget ? parseInt(customBudget) : budget;
-  const finalPeople = travelType === 'custom' ? numPeople : (travelType === 'Solo' ? '1' : (travelType === 'Couple' ? '2' : '4'));
+  const numPlaces = useMemo(() => {
+    return Math.round(Number(duration || 1) * 2.5 + selectedInterests.length * 1.5);
+  }, [duration, selectedInterests]);
 
-  const handleAddInterest = (e: React.KeyboardEvent | React.MouseEvent) => {
-    if (newInterestInput.trim()) {
-      const newValue = newInterestInput.trim();
-      if (!interestOptions.find(o => o.value === newValue)) {
-        setInterestOptions(prev => [...prev, { value: newValue, label: `${newValue} ✨` }]);
-      }
-      if (!selectedInterests.includes(newValue)) {
-        setSelectedInterests(prev => [...prev, newValue]);
-      }
-      setNewInterestInput('');
+  const handlePreset = (type: 'weekend' | 'budget' | 'luxury') => {
+    if (type === 'weekend') {
+      setDuration('3');
+      setBudget(15000);
+      setSelectedInterests(['Food', 'Culture']);
+    } else if (type === 'budget') {
+      setDuration('7');
+      setBudget(20000);
+      setSelectedInterests(['Nature', 'Culture']);
+    } else if (type === 'luxury') {
+      setDuration('5');
+      setBudget(150000);
+      setSelectedInterests(['Shopping', 'Food', 'Culture', 'Nightlife']);
     }
   };
 
   const handleBuildTrip = async () => {
     if (!destination || loading) return;
-
     setLoading(true);
-    const preferences = `${travelType} traveler (${finalPeople} people) interested in ${selectedInterests.join(', ')}. Preferring ${stayPreference} stays. Budget: ${currency}${finalBudget}. Additional notes: ${specifics}`;
     
     try {
-      // Small delay for effect
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      let itinerary;
-      try {
-        const response = await fetch('/api/generate-itinerary', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            destination, 
-            days: finalDuration, 
-            preferences 
-          })
-        });
-
-        if (!response.ok) throw new Error('API Unavailable');
-        itinerary = await response.json();
-      } catch (apiError) {
-        console.warn("Using MOCK data fallback.");
-        itinerary = { 
-          ...MOCK_ITINERARY, 
-          title: `Trip to ${destination}`,
-          summary: { 
-            ...MOCK_ITINERARY.summary, 
-            totalCost: `${currency}${finalBudget.toLocaleString()}` 
-          } 
-        };
-      }
-      
-      // Save to Firestore
+      // Collect all inputs
       const tripData = {
         user_id: user?.uid || 'guest-123',
-        destination: itinerary.title || destination,
+        destination,
+        duration,
+        travelType,
+        budget,
+        interests: selectedInterests,
         status: 'planning',
-        itinerary: JSON.stringify(itinerary),
-        budget: finalBudget,
-        currency: currency,
-        duration: finalDuration,
-        num_people: finalPeople,
         createdAt: serverTimestamp()
       };
 
+      // Mock delay for effect
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       const tripRef = await addDoc(collection(db, 'trips'), tripData);
       navigate(`/trips/${tripRef.id}`);
-      
     } catch (error) {
       console.error(error);
-      alert("Telegraph lines are down. Even the backup manifest failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col items-center p-6 md:p-12 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/lined-paper.png')]"></div>
-      
-      <div className="max-w-2xl w-full bg-white border border-ink/10 shadow-xl rounded-lg p-8 md:p-12 relative z-10">
-        <header className="text-center mb-12">
-          <div className="inline-block stamp-effect text-stamp-blue border-stamp-blue mb-4 uppercase">
-            planner no. 402
-          </div>
-          <h1 className="font-serif text-4xl font-bold text-ink">New Expedition</h1>
-          <p className="font-typewriter text-ink-light mt-2 italic">- Go thru the world, the right way</p>
-        </header>
+    <div className="min-h-screen bg-paper flex flex-col relative overflow-hidden bg-map-texture">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-circular-pattern pointer-events-none opacity-40 -mr-20 -mt-20" />
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-circular-pattern pointer-events-none opacity-20 -ml-10 -mb-10" />
 
-        <div className="space-y-10">
-          {/* Destination */}
-          <div className="flex flex-col space-y-2">
-            <label className="text-xs font-typewriter uppercase text-ink-light tracking-wider flex items-center">
-              <MapPin size={14} className="mr-1" /> Destination
-            </label>
-            <input 
-              type="text"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="e.g. Mumbai, Paris, Tokyo"
-              className="w-full bg-paper border-b-2 border-ink py-2 font-serif text-2xl focus:outline-none focus:border-stamp-red transition-colors placeholder:text-ink/20"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            {/* Duration */}
-            <div className="space-y-4">
-              <Dropdown 
-                label="Duration"
-                value={duration}
-                onChange={setDuration}
-                options={[
-                  { value: '1', label: '1 Day' },
-                  { value: '3', label: '2-3 Days' },
-                  { value: '7', label: '4-7 Days' },
-                  { value: '14', label: '1-2 Weeks' },
-                  { value: 'custom', label: 'Custom...' },
-                ]}
-              />
-              {duration === 'custom' && (
-                <div className="flex flex-col space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-[10px] font-typewriter uppercase text-ink-light">Enter Days</label>
-                  <input 
-                    type="number"
-                    value={customDuration}
-                    onChange={(e) => setCustomDuration(e.target.value)}
-                    placeholder="Number of days"
-                    className="w-full bg-paper border-b border-ink/30 py-1 font-serif text-lg focus:outline-none focus:border-ink"
-                  />
-                </div>
-              )}
+      <div className="flex-1 flex flex-col lg:flex-row p-4 md:p-8 gap-8 max-w-7xl mx-auto w-full z-10">
+        
+        {/* Main Form Area */}
+        <div className="flex-1 space-y-8">
+          <header className="mb-10 text-left">
+            <div className="stamp-effect text-stamp-red border-stamp-red text-[10px] uppercase mb-3">
+              Planner No. 402
             </div>
+            <h1 className="font-serif text-5xl font-bold text-ink mb-2">Plan Your Trip</h1>
+            <p className="font-typewriter text-ink-light italic">Tell us your preferences. We’ll build your trip.</p>
+          </header>
 
-            {/* Travel Mode (including custom people) */}
-            <div className="space-y-4">
-               <Dropdown 
-                label="Travel Mode"
-                value={travelType}
-                onChange={setTravelType}
-                options={[
-                  { value: 'Solo', label: 'Solo 👤' },
-                  { value: 'Couple', label: 'Couple 👩‍❤️‍👨' },
-                  { value: 'Friends', label: 'With Friends 🍻' },
-                  { value: 'Family', label: 'Family 👨‍👩‍👧‍👦' },
-                  { value: 'custom', label: 'Custom... 👥' },
-                ]}
-              />
-              {travelType === 'custom' && (
-                <div className="flex flex-col space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-[10px] font-typewriter uppercase text-ink-light flex items-center">
-                    <UserPlus size={10} className="mr-1" /> Number of People
+          <div className="bg-white/80 backdrop-blur-sm border border-ink/5 p-8 rounded-2xl shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-stamp-red via-ink to-stamp-blue opacity-20" />
+            
+            <div className="space-y-12">
+              {/* SECTION 1: DESTINATION */}
+              <section className="relative">
+                <label className="text-[10px] font-typewriter uppercase tracking-widest text-ink-light mb-4 block">
+                  01. Destination
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-1 pointer-events-none text-ink/30 group-focus-within:text-stamp-red transition-colors">
+                    <Search size={28} />
+                  </div>
+                  <input 
+                    type="text"
+                    value={destination}
+                    onChange={(e) => {
+                      setDestination(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    placeholder="Where to next? (e.g. Mumbai, Paris, Tokyo)"
+                    className="w-full bg-transparent border-b-2 border-ink py-4 pl-12 pr-4 font-serif text-3xl md:text-4xl focus:outline-none focus:border-stamp-red transition-all placeholder:text-ink/10"
+                  />
+                  
+                  <AnimatePresence>
+                    {showSuggestions && destination.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute top-full left-0 right-0 bg-white shadow-2xl border border-ink/10 mt-2 z-50 rounded-xl overflow-hidden"
+                      >
+                        {MOCK_CITIES.filter(c => c.toLowerCase().includes(destination.toLowerCase())).map(city => (
+                          <button
+                            key={city}
+                            onClick={() => {
+                              setDestination(city);
+                              setShowSuggestions(false);
+                            }}
+                            className="w-full text-left px-6 py-4 hover:bg-paper transition-colors flex items-center justify-between group"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <MapPin size={18} className="text-ink-light group-hover:text-stamp-red" />
+                              <span className="font-serif text-lg">{city}</span>
+                            </div>
+                            <Clock size={14} className="text-ink/10" />
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </section>
+
+              {/* SECTION 2: BASIC DETAILS */}
+              <section className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-4">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-typewriter uppercase tracking-widest text-ink-light block mb-2">
+                    02. Duration
                   </label>
-                  <input 
-                    type="number"
-                    value={numPeople}
-                    onChange={(e) => setNumPeople(e.target.value)}
-                    className="w-full bg-paper border-b border-ink/30 py-1 font-serif text-lg focus:outline-none focus:border-ink"
+                  <Dropdown 
+                    label="Days"
+                    value={duration}
+                    onChange={setDuration}
+                    options={[
+                      { value: '1', label: '1 Day' },
+                      { value: '3', label: '2–3 Days' },
+                      { value: '7', label: '4–7 Days' },
+                      { value: '14', label: '1+ Week' },
+                    ]}
                   />
                 </div>
-              )}
-            </div>
-          </div>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-typewriter uppercase tracking-widest text-ink-light block mb-2">
+                    03. Travel Mode
+                  </label>
+                  <div className="flex bg-paper p-1 rounded-lg border border-ink/5">
+                    {[
+                      { value: 'Solo', icon: <User size={16} /> },
+                      { value: 'Couple', icon: <Heart size={16} /> },
+                      { value: 'Friends', icon: <Users size={16} /> },
+                      { value: 'Family', icon: <Users size={16} /> }
+                    ].map((mode) => (
+                      <button
+                        key={mode.value}
+                        onClick={() => setTravelType(mode.value)}
+                        className={`flex-1 flex flex-col items-center justify-center py-2 rounded-md transition-all ${
+                          travelType === mode.value 
+                            ? 'bg-ink text-paper shadow-md' 
+                            : 'text-ink-light hover:bg-ink/5'
+                        }`}
+                      >
+                        {mode.icon}
+                        <span className="text-[8px] uppercase font-typewriter mt-1">{mode.value}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
 
-          {/* Budget (with local currency) */}
-          <div className="space-y-4">
-            <Slider 
-              label={`Planned Budget (${currency})`}
-              min={500}
-              max={500000}
-              step={500}
-              value={finalBudget}
-              onChange={(v) => {
-                setBudget(v);
-                setCustomBudget('');
-              }}
-              formatValue={(v) => `${currency}${v.toLocaleString()}`}
-            />
-            <div className="flex flex-col space-y-2">
-              <label className="text-[10px] font-typewriter uppercase text-ink-light">Or enter custom amount</label>
-              <input 
-                type="number"
-                value={customBudget}
-                onChange={(e) => setCustomBudget(e.target.value)}
-                placeholder={`${currency} Custom amount`}
-                className="w-48 bg-paper border-b border-ink/30 py-1 font-serif text-lg focus:outline-none focus:border-ink"
-              />
-            </div>
-          </div>
-
-          {/* Interests */}
-          <div className="space-y-4">
-            <Chips 
-              label="Interests"
-              options={interestOptions}
-              selectedValues={selectedInterests}
-              onChange={setSelectedInterests}
-            />
-            <div className="flex items-end space-x-2">
-              <div className="flex-1 flex flex-col space-y-2">
-                <label className="text-[10px] font-typewriter uppercase text-ink-light italic">Type an interest to add it...</label>
-                <input 
-                  type="text"
-                  value={newInterestInput}
-                  onChange={(e) => setNewInterestInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddInterest(e)}
-                  placeholder="e.g. Scuba, Jazz, Spices"
-                  className="w-full bg-paper border-b border-ink/30 py-1 font-serif text-lg focus:outline-none focus:border-ink"
+              {/* SECTION 3: BUDGET */}
+              <section className="pt-4">
+                <div className="flex justify-between items-end mb-4">
+                  <label className="text-[10px] font-typewriter uppercase tracking-widest text-ink-light block">
+                    04. Budget
+                  </label>
+                  <div className="text-right">
+                    <span className="font-serif text-3xl font-bold text-ink">{currency}{budget.toLocaleString()}</span>
+                    <p className="text-[10px] font-typewriter text-ink-light uppercase">Estimated daily spend: {currency}{estimatedCost.daily.toLocaleString()}</p>
+                  </div>
+                </div>
+                <Slider 
+                  label="Planned Budget"
+                  min={1000}
+                  max={250000}
+                  step={1000}
+                  value={budget}
+                  onChange={setBudget}
+                  formatValue={(v) => `${currency}${v.toLocaleString()}`}
                 />
-              </div>
-              <button 
-                onClick={handleAddInterest}
-                className="p-2 bg-ink text-paper rounded hover:bg-ink-light transition-colors"
-              >
-                <Plus size={18} />
-              </button>
+                <div className="flex justify-between mt-2 text-[10px] font-typewriter text-ink-light uppercase">
+                  <span>Economic</span>
+                  <span>Moderate</span>
+                  <span>Premium</span>
+                </div>
+              </section>
+
+              {/* SECTION 4: INTERESTS */}
+              <section className="pt-4">
+                <label className="text-[10px] font-typewriter uppercase tracking-widest text-ink-light block mb-6">
+                  05. Interests
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {INTEREST_OPTIONS.map((opt) => (
+                    <OptionCard
+                      key={opt.value}
+                      type="interest"
+                      title={opt.label}
+                      icon={opt.icon}
+                      onSelect={() => {
+                        setSelectedInterests(prev => 
+                          prev.includes(opt.value) 
+                            ? prev.filter(v => v !== opt.value) 
+                            : [...prev, opt.value]
+                        );
+                      }}
+                      isSelected={selectedInterests.includes(opt.value)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {/* SECTION 5: QUICK PRESETS */}
+              <section className="pt-8 border-t border-ink/5">
+                 <div className="flex flex-wrap gap-3">
+                   <button 
+                     onClick={() => handlePreset('weekend')}
+                     className="px-4 py-2 bg-paper-dark/50 border border-ink/10 rounded-full font-typewriter text-[10px] uppercase hover:bg-ink hover:text-paper transition-all flex items-center space-x-2"
+                   >
+                     <TrendingDown size={12} className="text-stamp-blue" />
+                     <span>Weekend Trip</span>
+                   </button>
+                   <button 
+                     onClick={() => handlePreset('budget')}
+                     className="px-4 py-2 bg-paper-dark/50 border border-ink/10 rounded-full font-typewriter text-[10px] uppercase hover:bg-ink hover:text-paper transition-all flex items-center space-x-2"
+                   >
+                     <Sparkles size={12} className="text-mustard" />
+                     <span>Budget Travel</span>
+                   </button>
+                   <button 
+                     onClick={() => handlePreset('luxury')}
+                     className="px-4 py-2 bg-paper-dark/50 border border-ink/10 rounded-full font-typewriter text-[10px] uppercase hover:bg-ink hover:text-paper transition-all flex items-center space-x-2"
+                   >
+                     <Sparkles size={12} className="text-stamp-red" />
+                     <span>Luxury Escape</span>
+                   </button>
+                 </div>
+              </section>
             </div>
           </div>
-
-          {/* Specifics */}
-          <div className="flex flex-col space-y-2">
-            <label className="text-xs font-typewriter uppercase text-ink-light tracking-wider border-b border-ink/5 pb-2">
-              Specifics & Manifest Notes
-            </label>
-            <textarea 
-              value={specifics}
-              onChange={(e) => setSpecifics(e.target.value)}
-              placeholder="Any dietary restrictions, accessibility needs, or specific landmarks you must see..."
-              className="w-full bg-paper border-2 border-ink/10 rounded-lg p-4 font-sans text-sm h-24 focus:outline-none focus:border-ink transition-colors resize-none"
-            />
-          </div>
-
-          <button
-            onClick={handleBuildTrip}
-            disabled={!destination || loading}
-            className="w-full bg-ink text-paper py-4 rounded-lg font-serif text-xl font-bold hover:bg-ink-light transition-all disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg hover:translate-y-[-2px]"
-          >
-            {loading ? (
-              <>
-                <Loader2 size={24} className="animate-spin" />
-                <span>Consulting the Oracle...</span>
-              </>
-            ) : (
-              <>
-                <Compass size={24} />
-                <span>Build My Trip</span>
-              </>
-            )}
-          </button>
         </div>
+
+        {/* Live Preview Side Panel */}
+        <aside className="w-full lg:w-96 space-y-6">
+          <div className="bg-ink text-paper p-8 rounded-2xl shadow-xl sticky top-8">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="font-serif text-2xl font-bold">Trip Summary</h2>
+              <div className="h-10 w-10 rounded-full border border-paper/20 flex items-center justify-center">
+                <Compass size={20} className="text-paper/60 animate-[spin_10s_linear_infinite]" />
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <div className="flex justify-between items-end border-b border-paper/10 pb-6">
+                <div>
+                  <p className="text-[10px] font-typewriter uppercase text-paper/60 mb-1">Total Estimated Cost</p>
+                  <p className="font-serif text-4xl font-bold">{currency}{estimatedCost.total.toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-typewriter uppercase text-paper/60 mb-1">Duration</p>
+                  <p className="font-serif text-lg">{duration} Days</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-8 w-8 bg-paper/10 rounded flex items-center justify-center">
+                    <MapPin size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-typewriter uppercase text-paper/60">Places to Visit</p>
+                    <p className="font-serif font-bold">{numPlaces}+ Handpicked spots</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="h-8 w-8 bg-paper/10 rounded flex items-center justify-center">
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-typewriter uppercase text-paper/60">Highlights</p>
+                    <p className="font-serif text-sm">Optimized routes & top attractions included</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mini Itinerary Preview */}
+              <div className="space-y-4 pt-4">
+                <p className="text-[10px] font-typewriter uppercase text-paper/60">Quick Preview</p>
+                <div className="space-y-3">
+                  {[1, 2].map((day) => (
+                    <div key={day} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className="w-4 h-4 rounded-full bg-paper/20 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-paper" />
+                        </div>
+                        {day === 1 && <div className="w-0.5 h-full bg-paper/10 my-1" />}
+                      </div>
+                      <div className="pb-1">
+                        <p className="font-serif text-xs font-bold">Day {day}</p>
+                        <p className="text-[10px] text-paper/60">Arrival & local immersion</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleBuildTrip}
+              disabled={!destination || loading}
+              className="w-full mt-10 bg-paper text-ink py-4 rounded-xl font-serif text-xl font-bold hover:bg-paper-dark transition-all disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg hover:shadow-paper/10"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={24} className="animate-spin" />
+                  <span>Building Itinerary...</span>
+                </>
+              ) : (
+                <>
+                  <Compass size={24} />
+                  <span>Build My Trip</span>
+                  <ChevronRight size={18} className="opacity-40" />
+                </>
+              )}
+            </button>
+          </div>
+        </aside>
+
       </div>
     </div>
   );
