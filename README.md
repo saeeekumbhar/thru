@@ -1,4 +1,4 @@
-# thru [th-roo] 🧭
+# thru 🧭
 
 **Go thru the world, the right way.**
 
