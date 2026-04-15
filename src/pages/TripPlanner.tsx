@@ -110,12 +110,23 @@ export default function TripPlanner() {
   const foodPct = (estimatedCost.breakdown.food / estimatedCost.total) * 100 || 0;
   const transportPct = (estimatedCost.breakdown.transport / estimatedCost.total) * 100 || 0;
 
+  const minBudget = useMemo(() => {
+    return Math.max(500, Number(duration) * 500 * (isPerPerson ? 1 : groupSize));
+  }, [duration, groupSize, isPerPerson]);
+
+  // Make sure current budget never drops below minBudget if bounds change dynamically
+  useEffect(() => {
+    if (budget < minBudget) setBudget(minBudget);
+  }, [minBudget]);
+
+  const formatINR = (val: number) => new Intl.NumberFormat('en-IN').format(val);
+
   const budgetFeedback = useMemo(() => {
-    const val = isPerPerson ? budget : budget / groupSize;
-    if (val < 15000) return "You're planning a tight budget trip. Best for hostels and street food.";
-    if (val < 50000) return "You're planning a moderate budget trip. Suitable for 3-star stays & local experiences.";
-    return "You're planning a premium trip. Great for luxury stays and fine dining views.";
-  }, [budget, isPerPerson, groupSize]);
+    const val = (isPerPerson ? budget : budget / groupSize) / Number(duration);
+    if (val < 2500) return "Budget-conscious trip — ideal for hostels & local food";
+    if (val < 8000) return "Balanced trip — comfort stays with curated experiences";
+    return "Premium trip — boutique stays & premium activities";
+  }, [budget, isPerPerson, groupSize, duration]);
 
   const handleBuildTrip = async () => {
     if (!destinationObj || loading) return;
@@ -336,43 +347,43 @@ export default function TripPlanner() {
                     <span className="w-6 h-6 rounded-full bg-ink/10 flex items-center justify-center text-ink font-bold">4</span> 
                     Trip Budget
                   </label>
-                  <div className="flex items-center p-1 bg-ink/5 rounded-xl self-start md:self-auto">
-                     <button
-                       onClick={() => setIsPerPerson(true)}
-                       className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${isPerPerson ? 'bg-white shadow text-ink' : 'text-ink-light hover:text-ink'}`}
-                     >
-                       Per Person
-                     </button>
-                     <button
-                       onClick={() => setIsPerPerson(false)}
-                       className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${!isPerPerson ? 'bg-white shadow text-ink' : 'text-ink-light hover:text-ink'}`}
-                     >
-                       Total Trip
-                     </button>
-                  </div>
                </div>
 
                <div className="bg-paper/30 p-6 md:p-8 rounded-2xl border border-ink/5 space-y-8">
-                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                     <div className="flex-1">
                       <Slider 
                         label=""
-                        min={isPerPerson ? 1000 : 5000}
+                        min={minBudget}
                         max={isPerPerson ? 200000 : 1000000}
-                        step={1000}
+                        step={100}
                         value={budget}
                         onChange={setBudget}
                         currency=""
                       />
                     </div>
-                    <div className="flex items-center gap-2 shrink-0 bg-white px-4 py-3 rounded-xl border border-ink/10 shadow-inner max-w-[200px]">
+                    <div className="flex items-center gap-2 shrink-0 bg-white px-4 py-3 rounded-xl border border-ink/10 shadow-inner w-full md:w-36">
                       <span className="font-serif text-xl text-ink/50">{currency}</span>
                       <input 
                         type="number" 
                         value={budget} 
                         onChange={(e) => setBudget(Number(e.target.value))}
-                        className="w-full bg-transparent font-serif text-3xl font-bold text-ink focus:outline-none"
+                        className="w-full bg-transparent font-serif text-2xl font-bold text-ink focus:outline-none text-right"
                       />
+                    </div>
+                    <div className="flex items-center p-1 bg-ink/5 rounded-xl self-start md:self-auto shrink-0">
+                       <button
+                         onClick={() => setIsPerPerson(true)}
+                         className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all ${isPerPerson ? 'bg-white shadow text-ink' : 'text-ink-light hover:text-ink'}`}
+                       >
+                         Per Person
+                       </button>
+                       <button
+                         onClick={() => setIsPerPerson(false)}
+                         className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all ${!isPerPerson ? 'bg-white shadow text-ink' : 'text-ink-light hover:text-ink'}`}
+                       >
+                         Total Trip
+                       </button>
                     </div>
                  </div>
 
@@ -384,9 +395,9 @@ export default function TripPlanner() {
                    </div>
                    
                    <div className="h-4 w-full flex rounded-full overflow-hidden shadow-inner gap-1">
-                      <div className="bg-ink h-full transition-all duration-500 ease-out" style={{ width: `${stayPct}%` }} title={`Stay: ${currency}${estimatedCost.breakdown.stay}`} />
-                      <div className="bg-mustard h-full transition-all duration-500 ease-out" style={{ width: `${foodPct}%` }} title={`Food: ${currency}${estimatedCost.breakdown.food}`} />
-                      <div className="bg-stamp-red h-full transition-all duration-500 ease-out" style={{ width: `${transportPct}%` }} title={`Transport: ${currency}${estimatedCost.breakdown.transport}`} />
+                      <div className="bg-ink h-full transition-all duration-500 ease-out" style={{ width: `${stayPct}%` }} title={`Stay: ${currency}${formatINR(estimatedCost.breakdown.stay)}`} />
+                      <div className="bg-mustard h-full transition-all duration-500 ease-out" style={{ width: `${foodPct}%` }} title={`Food: ${currency}${formatINR(estimatedCost.breakdown.food)}`} />
+                      <div className="bg-stamp-red h-full transition-all duration-500 ease-out" style={{ width: `${transportPct}%` }} title={`Transport: ${currency}${formatINR(estimatedCost.breakdown.transport)}`} />
                    </div>
                    
                    <div className="flex justify-between mt-4 text-[10px] sm:text-xs font-bold font-serif text-ink">
@@ -484,11 +495,11 @@ export default function TripPlanner() {
               <div className="bg-paper/5 p-4 rounded-2xl border border-paper/10 flex justify-between items-end">
                 <div>
                   <p className="text-xs text-paper/60 mb-1">Total Fund</p>
-                  <p className="font-serif text-3xl font-bold text-white max-w-[120px] truncate">{currency}{estimatedCost.total.toLocaleString()}</p>
+                  <p className="font-serif text-3xl font-bold text-white max-w-[120px] truncate">{currency}{formatINR(estimatedCost.total)}</p>
                 </div>
                 <div className="text-right pb-1">
                    <p className="text-[10px] text-paper/60 uppercase font-typewriter mb-1">Avg / Day</p>
-                   <p className="font-bold text-paper text-sm">{currency}{estimatedCost.daily.toLocaleString()}</p>
+                   <p className="font-bold text-paper text-sm">{currency}{formatINR(estimatedCost.daily)}</p>
                 </div>
               </div>
             </div>
@@ -512,6 +523,26 @@ export default function TripPlanner() {
                   </div>
                 </div>
               </div>
+
+              <AnimatePresence>
+                {selectedInterests.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-paper/5 p-3 rounded-2xl border border-paper/10 overflow-hidden"
+                  >
+                    <p className="text-[9px] uppercase font-typewriter text-paper/40 mb-2">Curated Spots Added</p>
+                    <div className="flex flex-col gap-1.5 ">
+                      {selectedInterests.map(int => (
+                        <div key={int} className="flex items-center gap-2 text-sm font-bold text-white tracking-wide">
+                          <span className="text-stamp-red">+</span> {(int.length % 3) + 2} {int.toLowerCase()} {int === 'Food' ? 'spots' : 'activities'}
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Section 4: Dynamic Preview */}

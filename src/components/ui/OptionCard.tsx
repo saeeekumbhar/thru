@@ -29,11 +29,13 @@ export const OptionCard: React.FC<OptionCardProps> = ({
     <motion.div 
       whileHover={{ y: -4, scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      animate={isSelected ? { scale: 1.03, zIndex: 10 } : { scale: 1, zIndex: 1 }}
+      animate={isSelected ? { scale: 1.02, zIndex: 10 } : { scale: 1, zIndex: 1 }}
       onClick={onSelect}
       className={`group relative border cursor-pointer transition-all duration-300 ${
         isSelected 
-          ? 'bg-ink border-ink shadow-2xl ring-2 ring-stamp-red/20' 
+          ? type === 'interest'
+            ? 'bg-stamp-red/5 border-stamp-red shadow-md'
+            : 'bg-ink border-ink shadow-2xl ring-2 ring-stamp-red/20' 
           : 'bg-white border-ink/10 hover:border-ink/30 shadow-sm'
       } ${type === 'interest' ? 'p-4 flex flex-col items-center text-center' : 'p-4 rounded-lg'}`}
       style={{
@@ -42,17 +44,12 @@ export const OptionCard: React.FC<OptionCardProps> = ({
     >
       {type === 'interest' ? (
         <>
-          <div className={`mb-3 transition-transform duration-300 ${isSelected ? 'scale-125 rotate-6' : 'group-hover:rotate-3'}`}>
+          <div className={`mb-3 transition-all duration-300 ${isSelected ? 'scale-110 text-stamp-red' : 'text-ink/60 group-hover:scale-105 group-hover:text-ink'}`}>
             {icon}
           </div>
-          <h3 className={`font-serif text-lg leading-tight ${isSelected ? 'text-stamp-red font-bold' : 'text-ink'}`}>
+          <h3 className={`font-serif text-lg leading-tight transition-colors ${isSelected ? 'text-stamp-red font-bold' : 'text-ink'}`}>
             {title}
           </h3>
-          {isSelected && (
-           <div className="absolute top-1 right-1 stamp-effect text-[8px] text-stamp-red border-stamp-red py-0.5 px-1 uppercase scale-75">
-             Selected
-           </div>
-          )}
         </>
       ) : (
         <>
