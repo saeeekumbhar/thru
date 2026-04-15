@@ -15,18 +15,18 @@ import { Stepper } from '../components/ui/Stepper';
 import { SegmentedSelector } from '../components/ui/SegmentedSelector';
 import { getCurrency } from '../lib/utils';
 
-const MOCK_CITIES = [
-  { id: 'mumbai', name: 'Mumbai', country: 'India', image: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=400&h=300&fit=crop', bestTime: 'Oct - Mar', tags: ['Street Food', 'Bollywood', 'Heritage'], description: 'The city of dreams and contrasts.' },
-  { id: 'paris', name: 'Paris', country: 'France', image: 'https://images.unsplash.com/photo-1502602881462-8c9769213158?w=400&h=300&fit=crop', bestTime: 'Apr - Jun', tags: ['Art', 'Romance', 'Cafes'], description: 'The global center for art and culture.' },
-  { id: 'tokyo', name: 'Tokyo', country: 'Japan', image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=300&fit=crop', bestTime: 'Mar - May', tags: ['Tech', 'Culture', 'Food'], description: 'Ultramodern and traditional perfectly blended.' },
-  { id: 'london', name: 'London', country: 'UK', image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=300&fit=crop', bestTime: 'May - Sep', tags: ['History', 'Pubs', 'Museums'], description: 'A 21st-century city with history stretching back to Roman times.' },
-  { id: 'newyork', name: 'New York', country: 'USA', image: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=400&h=300&fit=crop', bestTime: 'Sep - Nov', tags: ['Skyline', 'Broadway', 'Shopping'], description: 'The city that never sleeps.' },
-  { id: 'dubai', name: 'Dubai', country: 'UAE', image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=400&h=300&fit=crop', bestTime: 'Nov - Mar', tags: ['Luxury', 'Desert', 'Shopping'], description: 'High-tech luxury in the middle of the desert.' },
-  { id: 'singapore', name: 'Singapore', country: 'Singapore', image: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=400&h=300&fit=crop', bestTime: 'Feb - Apr', tags: ['Clean', 'Food', 'Gardens'], description: 'A pristine island city-state in maritime Southeast Asia.' },
-  { id: 'rome', name: 'Rome', country: 'Italy', image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=400&h=300&fit=crop', bestTime: 'Sep - Nov', tags: ['History', 'Pasta', 'Art'], description: 'The heart of a sweeping ancient empire.' },
-  { id: 'barcelona', name: 'Barcelona', country: 'Spain', image: 'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=400&h=300&fit=crop', bestTime: 'May - Jun', tags: ['Gaudí', 'Beach', 'Tapas'], description: 'A vibrant seaside city dripping with surreal architecture.' },
-  { id: 'bali', name: 'Bali', country: 'Indonesia', image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=400&h=300&fit=crop', bestTime: 'Apr - Oct', tags: ['Beaches', 'Temples', 'Relax'], description: 'A forested volcanic island, known for beaches and temples.' },
-];
+const CURRENCY_MAP: Record<string, string> = {
+  India: "₹",
+  USA: "$",
+  France: "€",
+  Germany: "€",
+  Japan: "¥",
+  UK: "£",
+  Italy: "€",
+  Spain: "€",
+  default: "$"
+};
+
 
 const INTEREST_OPTIONS = [
   { value: 'Food', label: 'Food', icon: <Coffee size={24} /> },
@@ -61,16 +61,105 @@ export default function TripPlanner() {
   };
 
   // Form State
-  const [destinationObj, setDestinationObj] = useState<typeof MOCK_CITIES[0] | null>(null);
+  const [tripData, setTripData] = useState({
+    destination: null as any,
+    currency: "₹",
+    duration: '3',
+    travelType: 'Solo',
+    travelers: 1,
+    budget: 0,
+    budgetType: "per_person" as 'per_person' | 'total',
+    interests: [] as string[]
+  });
+
   const [destinationQuery, setDestinationQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [weatherData, setWeatherData] = useState<any>(null);
   
-  const [duration, setDuration] = useState('3');
-  const [travelType, setTravelType] = useState('Solo');
-  const [groupSize, setGroupSize] = useState(1);
-  const [budget, setBudget] = useState(25000);
-  const [isPerPerson, setIsPerPerson] = useState(true);
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  // Custom Debounce
+  const [debouncedQuery, setDebouncedQuery] = useState(destinationQuery);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedQuery(destinationQuery), 300);
+    return () => clearTimeout(handler);
+  }, [destinationQuery]);
+
+  // Unified State Shims to maintain JSX rendering smoothly
+  const { destination, currency, duration, travelType, travelers, budget, budgetType, interests } = tripData;
+  const isPerPerson = budgetType === 'per_person';
+  const groupSize = travelers;
+  const destinationObj = destination;
+  const selectedInterests = interests;
+
+  const setDuration = (val: string) => setTripData(p => ({...p, duration: val}));
+  const setTravelType = (val: string) => setTripData(p => ({...p, travelType: val}));
+  const setGroupSize = (val: number) => setTripData(p => ({...p, travelers: val}));
+  const setBudget = (val: number) => setTripData(p => ({...p, budget: val}));
+  const setIsPerPerson = (perPerson: boolean) => setTripData(p => ({...p, budgetType: perPerson ? 'per_person' : 'total'}));
+  const setSelectedInterests = (val: typeof interests | ((prev: typeof interests) => typeof interests)) => {
+    setTripData(p => ({...p, interests: typeof val === 'function' ? val(p.interests) : val}));
+  };
+
+  // Google Places API Effect
+  useEffect(() => {
+    if (!debouncedQuery || destinationObj?.name === debouncedQuery.split(',')[0]) {
+      setSuggestions([]);
+      return;
+    }
+    const fetchPlaces = async () => {
+      try {
+        const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(debouncedQuery)}`);
+        const data = await res.json();
+        if (data.predictions) {
+          setSuggestions(data.predictions.map((p: any) => {
+             const terms = p.terms;
+             return {
+               place_id: p.place_id,
+               name: terms[0]?.value,
+               country: terms[terms.length - 1]?.value,
+               description: p.description
+             };
+          }));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchPlaces();
+  }, [debouncedQuery, destinationObj]);
+
+  const selectDestination = async (place: any) => {
+    setShowSuggestions(false);
+    setDestinationQuery(`${place.name}, ${place.country}`);
+    try {
+      const res = await fetch(`/api/places/details?place_id=${place.place_id}`);
+      const data = await res.json();
+      const geom = data.result?.geometry?.location || { lat: 0, lng: 0 };
+      
+      const matchedCurrencyProp = Object.keys(CURRENCY_MAP).find(c => place.country.includes(c));
+      const cur = matchedCurrencyProp ? CURRENCY_MAP[matchedCurrencyProp] : CURRENCY_MAP['default'];
+      
+      const newDest = {
+        name: place.name,
+        country: place.country,
+        place_id: place.place_id,
+        lat: geom.lat,
+        lng: geom.lng,
+      };
+
+      setTripData(p => ({ ...p, destination: newDest, currency: cur }));
+      scrollToStep(2);
+
+      // Fetch Weather
+      if (geom.lat) {
+         fetch(`/api/weather?lat=${geom.lat}&lon=${geom.lng}`)
+           .then(r => r.json())
+           .then(w => {
+              if (w.main) setWeatherData(w);
+           });
+      }
+    } catch (e) { console.error('Failed to select destination', e); }
+  };
   
   // Update group size when travel mode changes
   useEffect(() => {
@@ -88,38 +177,51 @@ export default function TripPlanner() {
     if (activeStep >= 2 && duration) scrollToStep(3);
   }, [duration]);
 
-  const currency = useMemo(() => getCurrency(destinationObj?.name || ''), [destinationObj]);
-
-  // Live Preview Logic & Budget Breakdown
   const estimatedCost = useMemo(() => {
     const totalBudget = isPerPerson ? budget * groupSize : budget;
     const basePerDay = totalBudget / Number(duration || 1);
     
-    const stay = Math.round(totalBudget * 0.45);
-    const food = Math.round(totalBudget * 0.30);
-    const transport = Math.round(totalBudget * 0.25);
+    let stayBase = 0.45;
+    let foodBase = 0.30;
+    let transportBase = 0.25;
+
+    if (selectedInterests.includes('Food')) {
+      foodBase += 0.10;
+      stayBase -= 0.10;
+    }
+    if (selectedInterests.includes('Adventure')) {
+      transportBase += 0.10;
+      stayBase -= 0.10;
+    }
+
+    const stay = Math.round(totalBudget * stayBase);
+    const food = Math.round(totalBudget * foodBase);
+    const transport = Math.round(totalBudget * transportBase);
 
     return {
       daily: Math.round(basePerDay),
       total: totalBudget,
       breakdown: { stay, food, transport }
     };
-  }, [budget, duration, groupSize, isPerPerson]);
+  }, [budget, duration, groupSize, isPerPerson, selectedInterests]);
 
   const stayPct = (estimatedCost.breakdown.stay / estimatedCost.total) * 100 || 0;
   const foodPct = (estimatedCost.breakdown.food / estimatedCost.total) * 100 || 0;
   const transportPct = (estimatedCost.breakdown.transport / estimatedCost.total) * 100 || 0;
 
   const minBudget = useMemo(() => {
-    return Math.max(500, Number(duration) * 500 * (isPerPerson ? 1 : groupSize));
+    const base = 500;
+    return Math.max(base, Number(duration) * base * (isPerPerson ? 1 : groupSize));
   }, [duration, groupSize, isPerPerson]);
 
   // Make sure current budget never drops below minBudget if bounds change dynamically
   useEffect(() => {
-    if (budget < minBudget) setBudget(minBudget);
-  }, [minBudget]);
+    if (budget < minBudget) setTripData(p => ({...p, budget: minBudget}));
+  }, [minBudget, budget]);
 
-  const formatINR = (val: number) => new Intl.NumberFormat('en-IN').format(val);
+  const formatINR = (val: number) => {
+    return new Intl.NumberFormat('en-IN').format(val);
+  };
 
   const budgetFeedback = useMemo(() => {
     const val = (isPerPerson ? budget : budget / groupSize) / Number(duration);
@@ -133,19 +235,15 @@ export default function TripPlanner() {
     setLoading(true);
     
     try {
-      const tripData = {
+      const payload = {
         user_id: user?.uid || 'guest-123',
-        destination: destinationObj.name,
-        duration,
-        travelType,
-        budget: isPerPerson ? budget * groupSize : budget,
-        interests: selectedInterests,
+        ...tripData,
         status: 'planning',
         createdAt: serverTimestamp()
       };
 
       await new Promise(resolve => setTimeout(resolve, 2000));
-      const tripRef = await addDoc(collection(db, 'trips'), tripData);
+      const tripRef = await addDoc(collection(db, 'trips'), payload);
       navigate(`/trips/${tripRef.id}`);
     } catch (error) {
       console.error(error);
@@ -193,7 +291,13 @@ export default function TripPlanner() {
                   onChange={(e) => {
                     setDestinationQuery(e.target.value);
                     setShowSuggestions(true);
-                    if (!e.target.value) setDestinationObj(null);
+                    setTripData(p => ({...p, destination: null}));
+                  }}
+                  onKeyDown={(e) => {
+                     if (e.key === 'Escape') setShowSuggestions(false);
+                     if (e.key === 'Enter' && suggestions.length > 0) {
+                        selectDestination(suggestions[0]);
+                     }
                   }}
                   onFocus={() => {
                     setShowSuggestions(true);
@@ -204,32 +308,25 @@ export default function TripPlanner() {
                 />
                 
                 <AnimatePresence>
-                  {showSuggestions && destinationQuery.length > 0 && !destinationObj && (
+                  {showSuggestions && suggestions.length > 0 && !destinationObj && (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
                       className="absolute top-[calc(100%+8px)] left-0 right-0 bg-white shadow-2xl border border-ink/10 rounded-2xl overflow-hidden max-h-96 overflow-y-auto"
                     >
-                      {MOCK_CITIES.filter(c => c.name.toLowerCase().includes(destinationQuery.toLowerCase()) || c.country.toLowerCase().includes(destinationQuery.toLowerCase())).map(city => (
+                      {suggestions.map((place: any, idx: number) => (
                         <button
-                          key={city.id}
-                          onClick={() => {
-                            setDestinationObj(city);
-                            setDestinationQuery(`${city.name}, ${city.country}`);
-                            setShowSuggestions(false);
-                            scrollToStep(2);
-                          }}
-                          className="w-full text-left p-3 hover:bg-paper/80 transition-colors flex items-center gap-4 group border-b border-ink/5 last:border-0"
+                          key={place.place_id}
+                          onClick={() => selectDestination(place)}
+                          className="w-full text-left p-4 hover:bg-paper/80 transition-colors flex items-center gap-4 group border-b border-ink/5 last:border-0"
                         >
-                          <img src={city.image} alt={city.name} className="w-16 h-16 rounded-xl object-cover shadow-sm group-hover:shadow-md transition-shadow" />
+                          <div className="w-10 h-10 rounded-full bg-paper flex items-center justify-center text-ink/30 group-hover:text-stamp-red group-hover:bg-stamp-red/10 transition-colors">
+                            <MapPin size={20} />
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-serif text-xl font-bold text-ink mb-1 group-hover:text-stamp-red transition-colors">{city.name}</h4>
-                            <div className="flex items-center gap-2 text-[10px] font-typewriter uppercase text-ink-light">
-                              <span className="flex items-center gap-1"><Sun size={12}/> {city.bestTime}</span>
-                              <span className="w-1 h-1 rounded-full bg-ink/20" />
-                              <span className="truncate">{city.tags.join(' • ')}</span>
-                            </div>
+                            <h4 className="font-serif text-xl font-bold text-ink mb-1 group-hover:text-stamp-red transition-colors">{place.name}</h4>
+                            <p className="text-[10px] font-typewriter uppercase text-ink-light truncate">{place.country}</p>
                           </div>
                         </button>
                       ))}
@@ -246,21 +343,21 @@ export default function TripPlanner() {
                     animate={{ opacity: 1, height: 'auto' }}
                     className="mt-6 bg-ink text-paper rounded-2xl overflow-hidden flex flex-col md:flex-row relative"
                   >
-                    <div className="md:w-1/3 relative h-48 md:h-auto">
-                      <img src={destinationObj.image} alt={destinationObj.name} className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent" />
-                    </div>
                     <div className="p-6 md:w-2/3 flex flex-col justify-center">
                       <div className="flex items-center gap-2 text-mustard mb-2">
                         <Navigation size={14} />
-                        <span className="text-[10px] font-typewriter uppercase tracking-widest">Selected</span>
+                        <span className="text-[10px] font-typewriter uppercase tracking-widest">Selected Destination</span>
                       </div>
-                      <h3 className="font-serif text-2xl font-bold mb-2">{destinationObj.name}, <span className="text-paper/60 italic">{destinationObj.country}</span></h3>
-                      <p className="text-sm text-paper/80 mb-4">{destinationObj.description}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {destinationObj.tags.map(t => (
-                          <span key={t} className="bg-paper/10 px-2 py-1 rounded text-[10px] font-typewriter uppercase tracking-wider">{t}</span>
-                        ))}
+                      <h3 className="font-serif text-3xl font-bold mb-2">{destinationObj.name}, <span className="text-paper/60 italic">{destinationObj.country}</span></h3>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="bg-paper/10 px-3 py-1.5 rounded-lg text-[10px] font-typewriter uppercase tracking-wider flex items-center gap-2">
+                           <MapPin size={12}/> Coordinates Synced
+                        </span>
+                        {weatherData && (
+                          <span className="bg-mustard/20 text-mustard border border-mustard/20 px-3 py-1.5 rounded-lg text-[10px] font-typewriter uppercase tracking-wider flex items-center gap-2">
+                             <Sun size={12} /> {Math.round(weatherData.main.temp)}°C, {weatherData.weather[0].main}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -511,18 +608,26 @@ export default function TripPlanner() {
                 <div className="bg-paper/5 p-3 rounded-2xl border border-paper/10 flex flex-col gap-2">
                   <Sun size={14} className="text-mustard" />
                   <div>
-                    <p className="text-[9px] uppercase font-typewriter text-paper/40">Best Time</p>
-                    <p className="text-sm font-bold text-white">{destinationObj ? destinationObj.bestTime : '---'}</p>
+                    <p className="text-[9px] uppercase font-typewriter text-paper/40">Current Weather</p>
+                    <p className="text-sm font-bold text-white">{weatherData ? `${Math.round(weatherData.main.temp)}°C, ${weatherData.weather[0].main}` : '---'}</p>
                   </div>
                 </div>
                 <div className="bg-paper/5 p-3 rounded-2xl border border-paper/10 flex flex-col gap-2">
-                  <Users size={14} className="text-stamp-blue" />
+                  <MapPin size={14} className="text-stamp-blue" />
                   <div>
-                    <p className="text-[9px] uppercase font-typewriter text-paper/40">Crowd Level</p>
-                    <p className="text-sm font-bold text-white">{destinationObj ? 'Moderate' : '---'}</p>
+                    <p className="text-[9px] uppercase font-typewriter text-paper/40">Coordinates</p>
+                    <p className="text-sm font-bold text-white font-typewriter tracking-tighter">
+                       {destinationObj ? `${destinationObj.lat.toFixed(2)}, ${destinationObj.lng.toFixed(2)}` : '---'}
+                    </p>
                   </div>
                 </div>
               </div>
+
+              {!destinationObj && destinationQuery && (
+                <div className="bg-stamp-red/10 border border-stamp-red/20 text-stamp-red font-bold text-xs p-3 rounded-xl mt-3 flex items-center gap-2">
+                  <Info size={14}/> Please select a valid destination from the dropdown.
+                </div>
+              )}
 
               <AnimatePresence>
                 {selectedInterests.length > 0 && (

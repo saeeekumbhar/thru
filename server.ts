@@ -86,6 +86,57 @@ async function startServer() {
     }
   });
 
+  // Google Places Autocomplete API
+  app.get('/api/places/autocomplete', async (req, res) => {
+    try {
+      const q = req.query.q as string;
+      const key = process.env.GOOGLE_MAPS_API_KEY;
+      if (!key) return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY is not set in env' });
+      
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}&types=(cities)&key=${key}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Places Autocomplete Error:', error);
+      res.status(500).json({ error: 'Failed to fetch places' });
+    }
+  });
+
+  // Google Places Details API (for coordinates)
+  app.get('/api/places/details', async (req, res) => {
+    try {
+      const placeId = req.query.place_id as string;
+      const key = process.env.GOOGLE_MAPS_API_KEY;
+      if (!key) return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY is not set in env' });
+      
+      const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry&key=${key}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Places Details Error:', error);
+      res.status(500).json({ error: 'Failed to fetch coordinates' });
+    }
+  });
+
+  // OpenWeather API
+  app.get('/api/weather', async (req, res) => {
+    try {
+      const { lat, lon } = req.query;
+      const key = process.env.WEATHER_API_KEY;
+      if (!key) return res.status(500).json({ error: 'WEATHER_API_KEY is not set in env' });
+      
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${key}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Weather Fetch Error:', error);
+      res.status(500).json({ error: 'Failed to fetch weather data' });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
