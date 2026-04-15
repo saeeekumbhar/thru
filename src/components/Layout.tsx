@@ -21,7 +21,7 @@ export default function Layout() {
       <header className="md:hidden bg-paper-dark border-b border-ink/10 p-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex flex-col">
           <h1 className="font-serif text-2xl font-bold tracking-widest text-ink leading-none">thru</h1>
-          <p className="text-[10px] font-typewriter text-ink-light italic">- Go thru the world, the right way</p>
+          <p className="text-[10px] font-typewriter text-ink font-bold italic mt-1">- Go thru the world, the right way</p>
         </div>
         {user && (
           <button onClick={logout} className="text-ink-light hover:text-stamp-red transition-colors">
@@ -38,7 +38,7 @@ export default function Layout() {
           
           <div className="flex flex-col relative z-10">
             <h1 className="font-serif text-4xl font-bold tracking-widest text-ink leading-none">thru</h1>
-            <p className="text-[10px] font-typewriter text-ink font-bold italic mt-1.5 uppercase tracking-tighter leading-tight opacity-90 drop-shadow-sm">
+            <p className="text-[10px] font-typewriter text-ink font-bold italic mt-1.5 uppercase tracking-tighter leading-tight drop-shadow-md">
               - Go thru the world, the right way
             </p>
           </div>
